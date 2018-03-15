@@ -12,11 +12,8 @@ undef USART3
 undef USART3_TX
 undef USART3_RX
 undef CAN1
-undef CAN1_RX
-undef CAN1_TX
 undef CAN2
-undef CAN2_RX
-undef CAN2_TX
+undef HAL_WITH_UAVCAN
 undef IOMCU_UART
 undef AP_FEATURE_SBUS_OUT
 undef HAL_OS_FATFS_IO
