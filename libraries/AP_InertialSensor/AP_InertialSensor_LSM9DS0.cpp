@@ -19,6 +19,8 @@
 
 #include <utility>
 
+#include <AP_HAL_Linux/GPIO.h>
+
 extern const AP_HAL::HAL &hal;
 
 #define LSM9DS0_DRY_X_PIN -1
