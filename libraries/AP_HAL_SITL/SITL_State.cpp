@@ -63,7 +63,7 @@ void SITL_State::_sitl_setup(const char *home_str)
 {
     _home_str = home_str;
 
-#if !defined(__CYGWIN__) && !defined(__CYGWIN64__)
+#ifndef __CYGWIN__
     _parent_pid = getppid();
 #endif
     _rcout_addr.sin_family = AF_INET;
