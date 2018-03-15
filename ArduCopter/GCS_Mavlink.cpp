@@ -345,12 +345,12 @@ bool GCS_MAVLINK_Copter::try_send_message(enum ap_message id)
 
     case MSG_RAW_IMU2:
         CHECK_PAYLOAD_SIZE(SCALED_PRESSURE);
-        send_scaled_pressure();
+        send_scaled_pressure(copter.barometer);
         break;
 
     case MSG_RAW_IMU3:
         CHECK_PAYLOAD_SIZE(SENSOR_OFFSETS);
-        send_sensor_offsets(copter.ins, copter.compass);
+        send_sensor_offsets(copter.ins, copter.compass, copter.barometer);
         break;
 
     case MSG_RANGEFINDER:
@@ -1652,7 +1652,7 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
 
         ins.set_accel(0, accels);
 
-        AP::baro().setHIL(packet.alt*0.001f);
+        copter.barometer.setHIL(packet.alt*0.001f);
         copter.compass.setHIL(0, packet.roll, packet.pitch, packet.yaw);
         copter.compass.setHIL(1, packet.roll, packet.pitch, packet.yaw);
 
