@@ -66,4 +66,3 @@ LIBRARIES += AP_VisualOdom
 LIBRARIES += AP_SmartRTL
 LIBRARIES += AP_Winch
 LIBRARIES += AP_WheelEncoder
-LIBRARIES += AP_Follow
