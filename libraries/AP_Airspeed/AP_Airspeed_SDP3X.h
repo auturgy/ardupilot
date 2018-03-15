@@ -54,6 +54,8 @@ private:
 
     float _temp;
     float _press;
+    float _temperature;
+    float _pressure;
     uint16_t _temp_count;
     uint16_t _press_count;
     float _temp_sum;
