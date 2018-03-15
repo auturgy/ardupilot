@@ -131,7 +131,8 @@ const AP_Param::GroupInfo SoaringController::var_info[] = {
 SoaringController::SoaringController(AP_AHRS &ahrs, AP_SpdHgtControl &spdHgt, const AP_Vehicle::FixedWing &parms) :
     _ahrs(ahrs),
     _spdHgt(spdHgt),
-    _vario(ahrs,parms),
+    _aparm(parms),
+    _vario(ahrs,spdHgt,parms),
     _loiter_rad(parms.loiter_radius),
     _throttle_suppressed(true)
 {
