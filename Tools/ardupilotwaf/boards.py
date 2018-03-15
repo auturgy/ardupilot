@@ -266,7 +266,6 @@ class sitl(Board):
             env.LIB += [
                 'winmm',
             ]
-            env.CXXFLAGS += ['-DCYGWIN_BUILD']
 
 
         if 'clang++' in cfg.env.COMPILER_CXX:
@@ -346,9 +345,6 @@ class chibios(Board):
             '-mfpu=fpv4-sp-d16',
             '-mfloat-abi=hard'
         ]
-
-        if sys.platform == 'cygwin':
-            env.CXXFLAGS += ['-DCYGWIN_BUILD']
 
         bldnode = cfg.bldnode.make_node(self.name)
         env.BUILDROOT = bldnode.make_node('').abspath()
