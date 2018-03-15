@@ -1,5 +1,4 @@
 #include <AP_HAL_F4Light/hardware/hal/syscalls.h>
-#include <AP_HAL_F4Light/params.h>
 
 #define HAL_NEEDS_PARAM_HELPER
 
