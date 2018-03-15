@@ -21,7 +21,7 @@ void Tracker::Log_Write_Attitude()
 
 void Tracker::Log_Write_Baro(void)
 {
-    DataFlash.Log_Write_Baro();
+    DataFlash.Log_Write_Baro(barometer);
 }
 
 struct PACKED log_Vehicle_Baro {
