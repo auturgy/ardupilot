@@ -326,10 +326,9 @@ is bob we will attempt to checkout bob-AVR'''
                 else:
                     framesuffix = "-%s" % frame
                 if not self.checkout(vehicle, tag, board, frame):
-                    msg = ("Failed checkout of %s %s %s %s" %
-                           (vehicle, board, tag, frame,))
-                    self.progress(msg)
-                    self.error_strings.append(msg)
+                    self.progress("Failed checkout of %s %s %s %s" %
+                                  (vehicle, board, tag, frame))
+                    self.error_count += 1
                     continue
                 if self.skip_board_waf(board):
                     continue
@@ -361,10 +360,9 @@ is bob we will attempt to checkout bob-AVR'''
                                           "".join([binaryname, framesuffix]))
                     self.run_waf(["build", "--targets", target])
                 except subprocess.CalledProcessError as e:
-                    msg = ("Failed build of %s %s%s %s" %
-                           (vehicle, board, framesuffix, tag))
-                    self.progress(msg)
-                    self.error_strings.append(msg)
+                    self.progress("Failed build of %s %s%s %s" %
+                                  (vehicle, board, framesuffix, tag))
+                    self.error_count += 1
                     continue
 
                 bare_path = os.path.join(self.buildroot,
@@ -394,10 +392,9 @@ is bob we will attempt to checkout bob-AVR'''
                 framesuffix = "-%s" % frame
 
             if not self.checkout(vehicle, tag, "PX4", frame):
-                msg = ("Failed checkout of %s %s %s %s" %
-                       (vehicle, "PX4", tag, frame))
-                self.progress(msg)
-                self.error_strings.append(msg)
+                self.progress("Failed checkout of %s %s %s %s" %
+                              (vehicle, "PX4", tag, frame))
+                self.error_count += 1
                 self.checkout(vehicle, "latest")
                 continue
 
@@ -439,10 +436,9 @@ is bob we will attempt to checkout bob-AVR'''
                         os.path.join("bin",
                                      "".join([binaryname, framesuffix]))])
                 except subprocess.CalledProcessError as e:
-                    msg = ("Failed build of %s %s%s %s for %s" %
-                           (vehicle, board, framesuffix, tag, v))
-                    self.progress(msg)
-                    self.error_strings.append(msg)
+                    self.progress("Failed build of %s %s%s %s for %s" %
+                                  (vehicle, board, framesuffix, tag, v))
+                    self.error_count += 1
                     continue
 
                 oldfile = os.path.join(self.buildroot, px4_v, "bin",
@@ -453,10 +449,9 @@ is bob we will attempt to checkout bob-AVR'''
                     shutil.copyfile(oldfile, newfile)
                 except Exception as e:
                     self.progress("FIXME: narrow exception (%s)" % repr(e))
-                    msg = ("Failed build copy of %s PX4%s %s for %s" %
-                           (vehicle, framesuffix, tag, v))
-                    self.progress(msg)
-                    self.error_strings.append(msg)
+                    self.progress("Failed build copy of %s PX4%s %s for %s" %
+                                  (vehicle, framesuffix, tag, v))
+                    self.error_count += 1
                     continue
                 # FIXME: why the two stage copy?!
                 self.copyit(newfile, ddir, tag, vehicle)
@@ -595,7 +590,7 @@ is bob we will attempt to checkout bob-AVR'''
         self.binaries = os.path.join(os.getcwd(), "..", "buildlogs",
                                      "binaries")
         self.basedir = os.getcwd()
-        self.error_strings = []
+        self.error_count = 0
 
         if os.path.exists("config.mk"):
             # FIXME: narrow exception
@@ -620,9 +615,7 @@ is bob we will attempt to checkout bob-AVR'''
 
         self.generate_manifest()
 
-        for error_string in self.error_strings:
-            self.progress("%s" % error_string)
-        sys.exit(len(self.error_strings))
+        sys.exit(self.error_count)
 
 
 if __name__ == '__main__':
