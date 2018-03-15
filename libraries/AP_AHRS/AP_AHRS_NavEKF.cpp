@@ -31,10 +31,11 @@ extern const AP_HAL::HAL& hal;
 
 // constructor
 AP_AHRS_NavEKF::AP_AHRS_NavEKF(AP_InertialSensor &ins,
+                               AP_Baro &baro,
                                NavEKF2 &_EKF2,
                                NavEKF3 &_EKF3,
                                Flags flags) :
-    AP_AHRS_DCM(ins),
+    AP_AHRS_DCM(ins, baro),
     EKF2(_EKF2),
     EKF3(_EKF3),
     _ekf2_started(false),
@@ -902,7 +903,7 @@ void AP_AHRS_NavEKF::get_relative_position_D_home(float &posD) const
     float originD;
     if (!get_relative_position_D_origin(originD) ||
         !get_origin(originLLH)) {
-        posD = -AP::baro().get_altitude();
+        posD = -_baro.get_altitude();
         return;
     }
 
