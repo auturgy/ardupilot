@@ -50,11 +50,9 @@ Copter::Mode *Copter::mode_from_mode_num(const uint8_t mode)
             ret = &mode_althold;
             break;
 
-#if MODE_AUTO_ENABLED == ENABLED
         case AUTO:
             ret = &mode_auto;
             break;
-#endif
 
         case CIRCLE:
             ret = &mode_circle;
@@ -227,7 +225,6 @@ void Copter::exit_mode(Copter::Mode *&old_flightmode,
 #endif
 
     // stop mission when we leave auto mode
-#if MODE_AUTO_ENABLED == ENABLED
     if (old_flightmode == &mode_auto) {
         if (mission.state() == AP_Mission::MISSION_RUNNING) {
             mission.stop();
@@ -236,7 +233,6 @@ void Copter::exit_mode(Copter::Mode *&old_flightmode,
         camera_mount.set_mode_to_default();
 #endif  // MOUNT == ENABLED
     }
-#endif
 
     // smooth throttle transition when switching from manual to automatic flight modes
     if (old_flightmode->has_manual_throttle() && !new_flightmode->has_manual_throttle() && motors->armed() && !ap.land_complete) {

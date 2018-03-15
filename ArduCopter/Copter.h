@@ -241,7 +241,6 @@ private:
 #endif
 
     // Mission library
-#if MODE_AUTO_ENABLED == ENABLED
     AP_Mission mission{ahrs,
             FUNCTOR_BIND_MEMBER(&Copter::start_command, bool, const AP_Mission::Mission_Command &),
             FUNCTOR_BIND_MEMBER(&Copter::verify_command_callback, bool, const AP_Mission::Mission_Command &),
@@ -256,7 +255,6 @@ private:
     void exit_mission() {
         mode_auto.exit_mission();
     }
-#endif
 
     // Arming/Disarming mangement class
     AP_Arming_Copter arming{ahrs, barometer, compass, battery, inertial_nav, ins};
@@ -956,9 +954,7 @@ private:
     ModeAcro mode_acro;
 #endif
     ModeAltHold mode_althold;
-#if MODE_AUTO_ENABLED == ENABLED
     ModeAuto mode_auto;
-#endif
 #if AUTOTUNE_ENABLED == ENABLED
     ModeAutoTune mode_autotune;
 #endif

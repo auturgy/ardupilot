@@ -272,10 +272,8 @@ void Copter::init_disarm_motors()
     // send disarm command to motors
     motors->armed(false);
 
-#if MODE_AUTO_ENABLED == ENABLED
     // reset the mission
     mission.reset();
-#endif
 
     DataFlash_Class::instance()->set_vehicle_armed(false);
 
