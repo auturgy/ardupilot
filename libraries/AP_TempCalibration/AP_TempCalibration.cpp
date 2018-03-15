@@ -77,8 +77,9 @@ const AP_Param::GroupInfo AP_TempCalibration::var_info[] = {
     AP_GROUPEND
 };
 
-AP_TempCalibration::AP_TempCalibration(AP_InertialSensor &_ins) :
-    ins(_ins)
+AP_TempCalibration::AP_TempCalibration(AP_Baro &_baro, AP_InertialSensor &_ins) :
+    baro(_baro)
+    ,ins(_ins)
 {
 }
 
@@ -100,7 +101,7 @@ float AP_TempCalibration::calculate_correction(float temp, float exponent) const
  */
 void AP_TempCalibration::setup_learning(void)
 {
-    learn_temp_start = AP::baro().get_temperature();
+    learn_temp_start = baro.get_temperature();
     learn_temp_step = 0.25;
     learn_count = 200;
     learn_i = 0;
@@ -169,7 +170,6 @@ void AP_TempCalibration::calculate_calibration(void)
 void AP_TempCalibration::learn_calibration(void)
 {
     // just for first baro now
-    const AP_Baro &baro = AP::baro();
     if (!baro.healthy(0) ||
         hal.util->get_soft_armed() ||
         baro.get_temperature(0) < Tzero) {
@@ -216,7 +216,6 @@ void AP_TempCalibration::learn_calibration(void)
  */
 void AP_TempCalibration::apply_calibration(void)
 {
-    AP_Baro &baro = AP::baro();
     // just for first baro now
     if (!baro.healthy(0)) {
         return;
