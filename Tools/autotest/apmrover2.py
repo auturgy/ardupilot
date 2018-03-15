@@ -3,43 +3,26 @@
 # Drive APMrover2 in SITL
 from __future__ import print_function
 
-import os
-import pexpect
 import shutil
-import time
 
-from common import AutoTest
+import pexpect
 
+from common import *
 from pysim import util
 from pysim import vehicleinfo
-
-from pymavlink import mavutil
 
 # get location of scripts
 testdir = os.path.dirname(os.path.realpath(__file__))
 
 # HOME = mavutil.location(-35.362938, 149.165085, 584, 270)
-HOME = mavutil.location(40.071374969556928,
-                        -105.22978898137808,
-                        1583.702759,
-                        246)
+HOME = mavutil.location(40.071374969556928, -105.22978898137808, 1583.702759, 246)
 
 
-class AutoTestRover(AutoTest):
-    def __init__(self,
-                 binary,
-                 viewerip=None,
-                 use_map=False,
-                 valgrind=False,
-                 gdb=False,
-                 speedup=10,
-                 frame=None,
-                 params=None,
-                 gdbserver=False):
-        super(AutoTestRover, self).__init__()
+class AutotestRover(Autotest):
+    def __init__(self, binary, viewerip=None, use_map=False, valgrind=False, gdb=False, speedup=10, frame=None, params=None, gdbserver=False):
+        super(AutotestRover, self).__init__()
         self.binary = binary
-        self.options = ("--sitl=127.0.0.1:5501 --out=127.0.0.1:19550"
-                        " --streamrate=10")
+        self.options = '--sitl=127.0.0.1:5501 --out=127.0.0.1:19550 --streamrate=10'
         self.viewerip = viewerip
         self.use_map = use_map
         self.valgrind = valgrind
@@ -48,10 +31,7 @@ class AutoTestRover(AutoTest):
         self.params = params
         self.gdbserver = gdbserver
 
-        self.home = "%f,%f,%u,%u" % (HOME.lat,
-                                     HOME.lng,
-                                     HOME.alt,
-                                     HOME.heading)
+        self.home = "%f,%f,%u,%u" % (HOME.lat, HOME.lng, HOME.alt, HOME.heading)
         self.homeloc = None
         self.speedup = speedup
         self.speedup_default = 10
@@ -68,21 +48,17 @@ class AutoTestRover(AutoTest):
         if self.use_map:
             self.options += ' --map'
 
-        self.sitl = util.start_SITL(self.binary,
-                                    wipe=True,
-                                    model=self.frame,
-                                    home=self.home,
+        self.sitl = util.start_SITL(self.binary, wipe=True, model=self.frame, home=self.home,
                                     speedup=self.speedup_default)
         self.mavproxy = util.start_MAVProxy_SITL('APMrover2')
 
-        self.progress("WAITING FOR PARAMETERS")
+        progress("WAITING FOR PARAMETERS")
         self.mavproxy.expect('Received [0-9]+ parameters')
 
         # setup test parameters
         vinfo = vehicleinfo.VehicleInfo()
         if self.params is None:
-            frames = vinfo.options["APMrover2"]["frames"]
-            self.params = frames[self.frame]["default_params_filename"]
+            self.params = vinfo.options["APMrover2"]["frames"][self.frame]["default_params_filename"]
         if not isinstance(self.params, list):
             self.params = [self.params]
         for x in self.params:
@@ -90,27 +66,21 @@ class AutoTestRover(AutoTest):
             self.mavproxy.expect('Loaded [0-9]+ parameters')
         self.set_parameter('LOG_REPLAY', 1)
         self.set_parameter('LOG_DISARMED', 1)
-        self.progress("RELOADING SITL WITH NEW PARAMETERS")
+        progress("RELOADING SITL WITH NEW PARAMETERS")
 
         # restart with new parms
         util.pexpect_close(self.mavproxy)
         util.pexpect_close(self.sitl)
 
-        self.sitl = util.start_SITL(self.binary,
-                                    model=self.frame,
-                                    home=self.home,
-                                    speedup=self.speedup,
-                                    valgrind=self.valgrind,
-                                    gdb=self.gdb,
-                                    gdbserver=self.gdbserver)
-        self.mavproxy = util.start_MAVProxy_SITL('APMrover2',
-                                                 options=self.options)
+        self.sitl = util.start_SITL(self.binary, model=self.frame, home=self.home, speedup=self.speedup,
+                                    valgrind=self.valgrind, gdb=self.gdb, gdbserver=self.gdbserver)
+        self.mavproxy = util.start_MAVProxy_SITL('APMrover2', options=self.options)
         self.mavproxy.expect('Telemetry log: (\S+)')
         logfile = self.mavproxy.match.group(1)
-        self.progress("LOGFILE %s" % logfile)
+        progress("LOGFILE %s" % logfile)
 
-        buildlog = self.buildlogs_path("APMrover2-test.tlog")
-        self.progress("buildlog=%s" % buildlog)
+        buildlog = util.reltopdir("../buildlogs/APMrover2-test.tlog")
+        progress("buildlog=%s" % buildlog)
         if os.path.exists(buildlog):
             os.unlink(buildlog)
         try:
@@ -120,26 +90,23 @@ class AutoTestRover(AutoTest):
 
         self.mavproxy.expect('Received [0-9]+ parameters')
 
-        util.expect_setup_callback(self.mavproxy, self.expect_callback)
+        util.expect_setup_callback(self.mavproxy, expect_callback)
 
-        self.expect_list_clear()
-        self.expect_list_extend([self.sitl, self.mavproxy])
+        expect_list_clear()
+        expect_list_extend([self.sitl, self.mavproxy])
 
-        self.progress("Started simulator")
+        progress("Started simulator")
 
         # get a mavlink connection going
-        connection_string = '127.0.0.1:19550'
         try:
-            self.mav = mavutil.mavlink_connection(connection_string,
-                                                  robust_parsing=True)
+            self.mav = mavutil.mavlink_connection('127.0.0.1:19550', robust_parsing=True)
         except Exception as msg:
-            self.progress("Failed to start mavlink connection on %s" %
-                          connection_string)
+            progress("Failed to start mavlink connection on 127.0.0.1:19550" % msg)
             raise
-        self.mav.message_hooks.append(self.message_hook)
-        self.mav.idle_hooks.append(self.idle_hook)
+        self.mav.message_hooks.append(message_hook)
+        self.mav.idle_hooks.append(idle_hook)
         self.hasInit = True
-        self.progress("Ready to start testing!")
+        progress("Ready to start testing!")
 
     def close(self):
         if self.use_map:
@@ -150,12 +117,10 @@ class AutoTestRover(AutoTest):
         util.pexpect_close(self.mavproxy)
         util.pexpect_close(self.sitl)
 
-        valgrind_log = util.valgrind_log_filepath(binary=self.binary,
-                                                  model=self.frame)
+        valgrind_log = util.valgrind_log_filepath(binary=self.binary, model=self.frame)
         if os.path.exists(valgrind_log):
             os.chmod(valgrind_log, 0o644)
-            shutil.copy(valgrind_log,
-                        self.buildlogs_path("APMrover2-valgrind.log"))
+            shutil.copy(valgrind_log, util.reltopdir("../buildlogs/APMrover2-valgrind.log"))
 
     # def reset_and_arm(self):
     #     """Reset RC, set to MANUAL and arm."""
@@ -171,7 +136,7 @@ class AutoTestRover(AutoTest):
     # # TEST ARM RADIO
     # def test_arm_motors_radio(self):
     #     """Test Arming motors with radio."""
-    #     self.progress("Test arming motors with radio")
+    #     progress("Test arming motors with radio")
     #     self.mavproxy.send('switch 6\n')  # stabilize/manual mode
     #     self.wait_mode('MANUAL')
     #     self.mavproxy.send('rc 3 1500\n')  # throttle at zero
@@ -180,13 +145,13 @@ class AutoTestRover(AutoTest):
     #     self.mavproxy.send('rc 1 1500\n')
     #
     #     self.mav.motors_armed_wait()
-    #     self.progress("MOTORS ARMED OK")
+    #     progress("MOTORS ARMED OK")
     #     return True
     #
     # # TEST DISARM RADIO
     # def test_disarm_motors_radio(self):
     #     """Test Disarm motors with radio."""
-    #     self.progress("Test disarming motors with radio")
+    #     progress("Test disarming motors with radio")
     #     self.mavproxy.send('switch 6\n')  # stabilize/manual mode
     #     self.wait_mode('MANUAL')
     #     self.mavproxy.send('rc 3 1500\n')  # throttle at zero
@@ -198,21 +163,21 @@ class AutoTestRover(AutoTest):
     #         self.mav.wait_heartbeat()
     #         if not self.mav.motors_armed():
     #             disarm_delay = self.get_sim_time() - tstart
-    #             self.progress("MOTORS DISARMED OK WITH RADIO")
+    #             progress("MOTORS DISARMED OK WITH RADIO")
     #             self.mavproxy.send('rc 1 1500\n')  # steer full right
     #             self.mavproxy.send('rc 4 1500\n')  # yaw full right
-    #             self.progress("Disarm in %ss" % disarm_delay)
+    #             progress("Disarm in %ss" % disarm_delay)
     #             return True
-    #     self.progress("FAILED TO DISARM WITH RADIO")
+    #     progress("FAILED TO DISARM WITH RADIO")
     #     return False
     #
     # # TEST AUTO DISARM
     # def test_autodisarm_motors(self):
     #     """Test Autodisarm motors."""
-    #     self.progress("Test Autodisarming motors")
+    #     progress("Test Autodisarming motors")
     #     self.mavproxy.send('switch 6\n')  # stabilize/manual mode
     #     #  NOT IMPLEMENTED ON ROVER
-    #     self.progress("MOTORS AUTODISARMED OK")
+    #     progress("MOTORS AUTODISARMED OK")
     #     return True
     #
     # # TEST RC OVERRIDE
@@ -223,7 +188,7 @@ class AutoTestRover(AutoTest):
     #
     # def test_mission(self, filename):
     #     """Test a mission from a file."""
-    #     self.progress("Test mission %s" % filename)
+    #     progress("Test mission %s" % filename)
     #     num_wp = self.load_mission_from_file(filename)
     #     self.mavproxy.send('wp set 1\n')
     #     self.mav.wait_heartbeat()
@@ -235,7 +200,7 @@ class AutoTestRover(AutoTest):
     #         self.mavproxy.expect("Mission Complete")
     #     self.mav.wait_heartbeat()
     #     self.wait_mode('HOLD')
-    #     self.progress("test: MISSION COMPLETE: passed=%s" % ret)
+    #     progress("test: MISSION COMPLETE: passed=%s" % ret)
     #     return ret
 
     ##########################################################
@@ -244,7 +209,7 @@ class AutoTestRover(AutoTest):
     # Drive a square in manual mode
     def drive_square(self, side=50):
         """Drive a square, Driving N then E ."""
-        self.progress("TEST SQUARE")
+        progress("TEST SQUARE")
         success = True
 
         # use LEARNING Mode
@@ -252,54 +217,54 @@ class AutoTestRover(AutoTest):
         self.wait_mode('MANUAL')
 
         # first aim north
-        self.progress("\nTurn right towards north")
+        progress("\nTurn right towards north")
         if not self.reach_heading_manual(10):
             success = False
 
         # save bottom left corner of box as waypoint
-        self.progress("Save WP 1 & 2")
+        progress("Save WP 1 & 2")
         self.save_wp()
 
         # pitch forward to fly north
-        self.progress("\nGoing north %u meters" % side)
+        progress("\nGoing north %u meters" % side)
         if not self.reach_distance_manual(side):
             success = False
 
         # save top left corner of square as waypoint
-        self.progress("Save WP 3")
+        progress("Save WP 3")
         self.save_wp()
 
         # roll right to fly east
-        self.progress("\nGoing east %u meters" % side)
+        progress("\nGoing east %u meters" % side)
         if not self.reach_heading_manual(100):
             success = False
         if not self.reach_distance_manual(side):
             success = False
 
         # save top right corner of square as waypoint
-        self.progress("Save WP 4")
+        progress("Save WP 4")
         self.save_wp()
 
         # pitch back to fly south
-        self.progress("\nGoing south %u meters" % side)
+        progress("\nGoing south %u meters" % side)
         if not self.reach_heading_manual(190):
             success = False
         if not self.reach_distance_manual(side):
             success = False
 
         # save bottom right corner of square as waypoint
-        self.progress("Save WP 5")
+        progress("Save WP 5")
         self.save_wp()
 
         # roll left to fly west
-        self.progress("\nGoing west %u meters" % side)
+        progress("\nGoing west %u meters" % side)
         if not self.reach_heading_manual(280):
             success = False
         if not self.reach_distance_manual(side):
             success = False
 
         # save bottom left corner of square (should be near home) as waypoint
-        self.progress("Save WP 6")
+        progress("Save WP 6")
         self.save_wp()
 
         return success
@@ -310,24 +275,23 @@ class AutoTestRover(AutoTest):
         self.wait_mode('MANUAL')
         self.set_rc(3, 2000)
 
-        self.progress("Driving left circuit")
+        progress("Driving left circuit")
         # do 4 turns
         for i in range(0, 4):
             # hard left
-            self.progress("Starting turn %u" % i)
+            progress("Starting turn %u" % i)
             self.set_rc(1, 1000)
             if not self.wait_heading(270 - (90*i), accuracy=10):
                 return False
             self.set_rc(1, 1500)
-            self.progress("Starting leg %u" % i)
+            progress("Starting leg %u" % i)
             if not self.wait_distance(50, accuracy=7):
                 return False
         self.set_rc(3, 1500)
-        self.progress("Circuit complete")
+        progress("Circuit complete")
         return True
 
-    # def test_throttle_failsafe(self, home, distance_min=10, side=60,
-    #                            timeout=300):
+    # def test_throttle_failsafe(self, home, distance_min=10, side=60, timeout=300):
     #     """Fly east, Failsafe, return, land."""
     #
     #     self.mavproxy.send('switch 6\n')  # manual mode
@@ -335,17 +299,17 @@ class AutoTestRover(AutoTest):
     #     self.mavproxy.send("param set FS_ACTION 1\n")
     #
     #     # first aim east
-    #     self.progress("turn east")
+    #     progress("turn east")
     #     if not self.reach_heading_manual(135):
     #         return False
     #
     #     # fly east 60 meters
-    #     self.progress("# Going forward %u meters" % side)
+    #     progress("# Going forward %u meters" % side)
     #     if not self.reach_distance_manual(side):
     #         return False
     #
     #     # pull throttle low
-    #     self.progress("# Enter Failsafe")
+    #     progress("# Enter Failsafe")
     #     self.mavproxy.send('rc 3 900\n')
     #
     #     tstart = self.get_sim_time()
@@ -354,11 +318,10 @@ class AutoTestRover(AutoTest):
     #         m = self.mav.recv_match(type='VFR_HUD', blocking=True)
     #         pos = self.mav.location()
     #         home_distance = self.get_distance(home, pos)
-    #         self.progress("Alt: %u  HomeDistance: %.0f" %
-    #                       (m.alt, home_distance))
+    #         progress("Alt: %u  HomeDistance: %.0f" % (m.alt, home_distance))
     #         # check if we've reached home
     #         if home_distance <= distance_min:
-    #             self.progress("RTL Complete")
+    #             progress("RTL Complete")
     #             success = True
     #
     #     # reduce throttle
@@ -369,11 +332,10 @@ class AutoTestRover(AutoTest):
     #     self.wait_mode('MANUAL')
     #
     #     if success:
-    #         self.progress("Reached failsafe home OK")
+    #         progress("Reached failsafe home OK")
     #         return True
     #     else:
-    #         self.progress("Failed to reach Home on failsafe RTL - "
-    #         "timed out after %u seconds" % timeout)
+    #         progress("Failed to reach Home on failsafe RTL - timed out after %u seconds" % timeout)
     #         return False
 
     #################################################
@@ -381,7 +343,7 @@ class AutoTestRover(AutoTest):
     #################################################
     def drive_mission(self, filename):
         """Drive a mission from a file."""
-        self.progress("Driving mission %s" % filename)
+        progress("Driving mission %s" % filename)
         self.mavproxy.send('wp load %s\n' % filename)
         self.mavproxy.expect('Flight plan received')
         self.mavproxy.send('wp list\n')
@@ -392,23 +354,21 @@ class AutoTestRover(AutoTest):
         if not self.wait_waypoint(1, 4, max_dist=5):
             return False
         self.wait_mode('HOLD')
-        self.progress("Mission OK")
+        progress("Mission OK")
         return True
 
     def do_get_banner(self):
         self.mavproxy.send("long DO_SEND_BANNER 1\n")
         start = time.time()
         while True:
-            m = self.mav.recv_match(type='STATUSTEXT',
-                                    blocking=True,
-                                    timeout=1)
+            m = self.mav.recv_match(type='STATUSTEXT', blocking=True, timeout=1)
             if m is not None and "ArduRover" in m.text:
-                self.progress("banner received: %s" % m.text)
+                progress("banner received: %s" % m.text)
                 return True
             if time.time() - start > 10:
                 break
 
-        self.progress("banner not received")
+        progress("banner not received")
 
         return False
 
@@ -467,23 +427,15 @@ class AutoTestRover(AutoTest):
 
         delta = distance_without_brakes - distance_with_brakes
         if delta < distance_without_brakes * 0.05:  # 5% isn't asking for much
-            self.progress("Brakes have negligible effect"
-                          "(with=%0.2fm without=%0.2fm delta=%0.2fm)" %
-                          (distance_with_brakes,
-                           distance_without_brakes,
-                           delta))
+            progress("Brakes have negligible effect (with=%0.2fm without=%0.2fm delta=%0.2fm)" % (distance_with_brakes, distance_without_brakes, delta))
             return False
         else:
-            self.progress(
-                "Brakes work (with=%0.2fm without=%0.2fm delta=%0.2fm)" %
-                (distance_with_brakes, distance_without_brakes, delta))
+            progress("Brakes work (with=%0.2fm without=%0.2fm delta=%0.2fm)" % (distance_with_brakes, distance_without_brakes, delta))
 
         return True
 
     def drive_rtl_mission(self):
-        mission_filepath = os.path.join(testdir,
-                                        "ArduRover-Missions",
-                                        "rtl.txt")
+        mission_filepath = os.path.join(testdir, "ArduRover-Missions", "rtl.txt")
         self.mavproxy.send('wp load %s\n' % mission_filepath)
         self.mavproxy.expect('Flight plan received')
         self.mavproxy.send('switch 4\n')  # auto mode
@@ -495,16 +447,16 @@ class AutoTestRover(AutoTest):
                                 blocking=True,
                                 timeout=0.1)
         if m is None:
-            self.progress("Did not receive NAV_CONTROLLER_OUTPUT message")
+            progress("Did not receive NAV_CONTROLLER_OUTPUT message")
             return False
 
         wp_dist_min = 5
         if m.wp_dist < wp_dist_min:
-            self.progress("Did not start at least 5 metres from destination")
+            progress("Did not start at least 5 metres from destination")
             return False
 
-        self.progress("NAV_CONTROLLER_OUTPUT.wp_dist looks good (%u >= %u)" %
-                      (m.wp_dist, wp_dist_min,))
+        progress("NAV_CONTROLLER_OUTPUT.wp_dist looks good (%u >= %u)" %
+                 (m.wp_dist, wp_dist_min,))
 
         self.wait_mode('HOLD')
 
@@ -512,114 +464,112 @@ class AutoTestRover(AutoTest):
         home_distance = self.get_distance(HOME, pos)
         home_distance_max = 5
         if home_distance > home_distance_max:
-            self.progress("Did not get home (%u metres distant > %u)" %
-                          (home_distance, home_distance_max))
+            progress("Did not get home (%u metres distant > %u)" %
+                     (home_distance, home_distance_max))
             return False
         self.mavproxy.send('switch 6\n')
         self.wait_mode('MANUAL')
-        self.progress("RTL Mission OK")
+        progress("RTL Mission OK")
         return True
 
     def autotest(self):
         """Autotest APMrover2 in SITL."""
         if not self.hasInit:
             self.init()
-        self.progress("Started simulator")
+        progress("Started simulator")
 
         failed = False
         e = 'None'
         try:
-            self.progress("Waiting for a heartbeat with mavlink protocol %s" %
-                          self.mav.WIRE_PROTOCOL_VERSION)
+            progress("Waiting for a heartbeat with mavlink protocol %s" % self.mav.WIRE_PROTOCOL_VERSION)
             self.mav.wait_heartbeat()
-            self.progress("Setting up RC parameters")
+            progress("Setting up RC parameters")
             self.set_rc_default()
             self.set_rc(8, 1800)
-            self.progress("Waiting for GPS fix")
+            progress("Waiting for GPS fix")
             self.mav.wait_gps_fix()
             self.homeloc = self.mav.location()
-            self.progress("Home location: %s" % self.homeloc)
+            progress("Home location: %s" % self.homeloc)
             self.mavproxy.send('switch 6\n')  # Manual mode
             self.wait_mode('MANUAL')
-            self.progress("Waiting reading for arm")
+            progress("Waiting reading for arm")
             self.wait_ready_to_arm()
             if not self.arm_vehicle():
-                self.progress("Failed to ARM")
+                progress("Failed to ARM")
                 failed = True
 
-            self.progress("#")
-            self.progress("########## Drive an RTL mission  ##########")
-            self.progress("#")
+            progress("#")
+            progress("########## Drive an RTL mission  ##########")
+            progress("#")
             # Drive a square in learning mode
             # self.reset_and_arm()
             if not self.drive_rtl_mission():
-                self.progress("Failed RTL mission")
+                progress("Failed RTL mission")
                 failed = True
 
-            self.progress("#")
-            self.progress("########## Drive a square and save WPs with CH7"
-                          "switch  ##########")
-            self.progress("#")
+            progress("#")
+            progress("########## Drive a square and save WPs with CH7 switch  ##########")
+            progress("#")
             # Drive a square in learning mode
             # self.reset_and_arm()
             if not self.drive_square():
-                self.progress("Failed drive square")
+                progress("Failed drive square")
                 failed = True
 
             if not self.drive_mission(os.path.join(testdir, "rover1.txt")):
-                self.progress("Failed mission")
+                progress("Failed mission")
                 failed = True
 
             if not self.drive_brake():
-                self.progress("Failed brake")
+                progress("Failed brake")
                 failed = True
 
             if not self.disarm_vehicle():
-                self.progress("Failed to DISARM")
+                progress("Failed to DISARM")
                 failed = True
 
             # do not move this to be the first test.  MAVProxy's dedupe
             # function may bite you.
-            self.progress("Getting banner")
+            progress("Getting banner")
             if not self.do_get_banner():
-                self.progress("FAILED: get banner")
+                progress("FAILED: get banner")
                 failed = True
 
-            self.progress("Getting autopilot capabilities")
+            progress("Getting autopilot capabilities")
             if not self.do_get_autopilot_capabilities():
-                self.progress("FAILED: get capabilities")
+                progress("FAILED: get capabilities")
                 failed = True
 
-            self.progress("Setting mode via MAV_COMMAND_DO_SET_MODE")
+            progress("Setting mode via MAV_COMMAND_DO_SET_MODE")
             if not self.do_set_mode_via_command_long():
                 failed = True
 
             # Throttle Failsafe
-            self.progress("#")
-            self.progress("########## Test Failsafe ##########")
-            self.progress("#")
+            progress("#")
+            progress("########## Test Failsafe ##########")
+            progress("#")
             # self.reset_and_arm()
             # if not self.test_throttle_failsafe(HOME, distance_min=4):
-            #     self.progress("Throttle failsafe failed")
+            #     progress("Throttle failsafe failed")
             #     sucess = False
 
-            if not self.log_download(self.buildlogs_path("APMrover2-log.bin")):
-                self.progress("Failed log download")
+            if not self.log_download(util.reltopdir("../buildlogs/APMrover2-log.bin")):
+                progress("Failed log download")
                 failed = True
     #        if not drive_left_circuit(self):
-    #            self.progress("Failed left circuit")
+    #            progress("Failed left circuit")
     #            failed = True
     #        if not drive_RTL(self):
-    #            self.progress("Failed RTL")
+    #            progress("Failed RTL")
     #            failed = True
 
         except pexpect.TIMEOUT as e:
-            self.progress("Failed with timeout")
+            progress("Failed with timeout")
             failed = True
 
         self.close()
 
         if failed:
-            self.progress("FAILED: %s" % e)
+            progress("FAILED: %s" % e)
             return False
         return True

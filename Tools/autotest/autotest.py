@@ -261,27 +261,27 @@ def run_step(step):
         fly_opts["speedup"] = opts.speedup
 
     if step == 'fly.ArduCopter':
-        arducopter = AutoTestCopter(binary, frame=opts.frame, **fly_opts)
+        arducopter = AutotestCopter(binary, frame=opts.frame, **fly_opts)
         return arducopter.autotest()
 
     if step == 'fly.CopterAVC':
-        arducopter = AutoTestCopter(binary, **fly_opts)
+        arducopter = AutotestCopter(binary, **fly_opts)
         return arducopter.autotest_heli()
 
     if step == 'fly.ArduPlane':
-        arduplane = AutoTestPlane(binary, **fly_opts)
+        arduplane = AutotestPlane(binary, **fly_opts)
         return arduplane.autotest()
 
     if step == 'fly.QuadPlane':
-        quadplane = AutoTestQuadPlane(binary, **fly_opts)
+        quadplane = AutotestQuadPlane(binary, **fly_opts)
         return quadplane.autotest()
 
     if step == 'drive.APMrover2':
-        apmrover2 = AutoTestRover(binary, frame=opts.frame, **fly_opts)
+        apmrover2 = AutotestRover(binary, frame=opts.frame, **fly_opts)
         return apmrover2.autotest()
 
     if step == 'dive.ArduSub':
-        ardusub = AutoTestSub(binary, **fly_opts)
+        ardusub = AutotestSub(binary, **fly_opts)
         return ardusub.autotest()
 
     if step == 'build.All':
