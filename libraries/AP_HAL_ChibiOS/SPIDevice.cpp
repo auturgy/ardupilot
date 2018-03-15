@@ -21,8 +21,6 @@
 #include "Semaphores.h"
 #include <stdio.h>
 
-#if HAL_USE_SPI == TRUE
-
 using namespace ChibiOS;
 extern const AP_HAL::HAL& hal;
 
@@ -47,7 +45,7 @@ static const struct SPIDriverInfo {
 #define MHZ (1000U*1000U)
 #define KHZ (1000U)
 // device list comes from hwdef.dat
-ChibiOS::SPIDesc SPIDeviceManager::device_table[] = { HAL_SPI_DEVICE_LIST };
+SPIDesc SPIDeviceManager::device_table[] = { HAL_SPI_DEVICE_LIST };
 
 SPIBus::SPIBus(uint8_t _bus) :
     DeviceBus(APM_SPI_PRIORITY),
@@ -325,5 +323,3 @@ SPIDeviceManager::get_device(const char *name)
 
     return AP_HAL::OwnPtr<AP_HAL::SPIDevice>(new SPIDevice(*busp, desc));
 }
-
-#endif

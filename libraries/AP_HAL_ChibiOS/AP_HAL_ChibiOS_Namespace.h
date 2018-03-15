@@ -5,7 +5,6 @@ namespace ChibiOS {
     class AnalogSource;
     class DigitalSource;
     class GPIO;
-    class I2CBus;
     class I2CDevice;
     class I2CDeviceManager;
     class OpticalFlow;
@@ -14,8 +13,6 @@ namespace ChibiOS {
     class RCOutput;
     class Scheduler;
     class Semaphore;
-    class SPIBus;
-    class SPIDesc;
     class SPIDevice;
     class SPIDeviceDriver;
     class SPIDeviceManager;

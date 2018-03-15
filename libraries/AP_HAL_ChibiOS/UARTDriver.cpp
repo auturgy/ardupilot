@@ -186,7 +186,6 @@ void UARTDriver::begin(uint32_t b, uint16_t rxS, uint16_t txS)
         }
 #endif
     } else {
-#if HAL_USE_SERIAL == TRUE
         if (_baudrate != 0) {
             bool was_initialised = _device_initialised;            
             //setup Rx DMA
@@ -249,7 +248,6 @@ void UARTDriver::begin(uint32_t b, uint16_t rxS, uint16_t txS)
                 }
             }
         }
-#endif // HAL_USE_SERIAL
     }
 
     if (_writebuf.get_size() && _readbuf.get_size()) {
@@ -263,7 +261,6 @@ void UARTDriver::begin(uint32_t b, uint16_t rxS, uint16_t txS)
 
 void UARTDriver::dma_tx_allocate(void)
 {
-#if HAL_USE_SERIAL == TRUE
     osalDbgAssert(txdma == nullptr, "double DMA allocation");
     txdma = STM32_DMA_STREAM(sdef.dma_tx_stream_id);
     chSysLock();
@@ -274,7 +271,6 @@ void UARTDriver::dma_tx_allocate(void)
     osalDbgAssert(!dma_allocated, "stream already allocated");
     chSysUnlock();
     dmaStreamSetPeripheral(txdma, &((SerialDriver*)sdef.serial)->usart->DR);
-#endif // HAL_USE_SERIAL
 }
 
 void UARTDriver::dma_tx_deallocate(void)
@@ -307,7 +303,6 @@ void UARTDriver::tx_complete(void* self, uint32_t flags)
 
 void UARTDriver::rx_irq_cb(void* self)
 {
-#if HAL_USE_SERIAL == TRUE
     UARTDriver* uart_drv = (UARTDriver*)self;
     if (!uart_drv->sdef.dma_rx) {
         return;
@@ -319,12 +314,10 @@ void UARTDriver::rx_irq_cb(void* self)
         //disable dma, triggering DMA transfer complete interrupt
         uart_drv->rxdma->stream->CR &= ~STM32_DMA_CR_EN;
     }
-#endif // HAL_USE_SERIAL
 }
 
 void UARTDriver::rxbuff_full_irq(void* self, uint32_t flags)
 {
-#if HAL_USE_SERIAL == TRUE
     UARTDriver* uart_drv = (UARTDriver*)self;
     if (uart_drv->_lock_rx_in_timer_tick) {
         return;
@@ -349,7 +342,6 @@ void UARTDriver::rxbuff_full_irq(void* self, uint32_t flags)
     if (uart_drv->_rts_is_active) {
         uart_drv->update_rts_line();
     }
-#endif // HAL_USE_SERIAL
 }
 
 void UARTDriver::begin(uint32_t b)
@@ -368,9 +360,7 @@ void UARTDriver::end()
         sduStop((SerialUSBDriver*)sdef.serial);
 #endif
     } else {
-#if HAL_USE_SERIAL == TRUE
         sdStop((SerialDriver*)sdef.serial);
-#endif
     }
     _readbuf.set_size(0);
     _writebuf.set_size(0);
@@ -568,16 +558,14 @@ void UARTDriver::write_pending_bytes_NODMA(uint32_t n)
     ByteBuffer::IoVec vec[2];
     const auto n_vec = _writebuf.peekiovec(vec, n);
     for (int i = 0; i < n_vec; i++) {
-        int ret = -1;
+        int ret;
         if (sdef.is_usb) {
             ret = 0;
 #ifdef HAVE_USB_SERIAL
             ret = chnWriteTimeout((SerialUSBDriver*)sdef.serial, vec[i].data, vec[i].len, TIME_IMMEDIATE);
 #endif
         } else {
-#if HAL_USE_SERIAL == TRUE
             ret = chnWriteTimeout((SerialDriver*)sdef.serial, vec[i].data, vec[i].len, TIME_IMMEDIATE);
-#endif
         }
         if (ret < 0) {
             break;
@@ -694,9 +682,7 @@ void UARTDriver::_timer_tick(void)
     #endif
             } else {
                 ret = 0;
-#if HAL_USE_SERIAL == TRUE
                 ret = chnReadTimeout((SerialDriver*)sdef.serial, vec[i].data, vec[i].len, TIME_IMMEDIATE);
-#endif
             }
             if (ret < 0) {
                 break;
@@ -735,7 +721,7 @@ void UARTDriver::set_flow_control(enum flow_control flowcontrol)
         // no hw flow control available
         return;
     }
-#if HAL_USE_SERIAL == TRUE
+
     _flow_control = flowcontrol;
     if (!_initialised) {
         // not ready yet, we just set variable for when we call begin
@@ -769,7 +755,6 @@ void UARTDriver::set_flow_control(enum flow_control flowcontrol)
         ((SerialDriver*)(sdef.serial))->usart->CR3 &= ~USART_CR3_RTSE;
         break;
     }
-#endif // HAL_USE_SERIAL
 }
 
 /*
@@ -813,7 +798,6 @@ void UARTDriver::configure_parity(uint8_t v)
         // not possible
         return;
     }
-#if HAL_USE_SERIAL == TRUE
     // stop and start to take effect
     sdStop((SerialDriver*)sdef.serial);
     
@@ -842,7 +826,6 @@ void UARTDriver::configure_parity(uint8_t v)
         //because we will handle them via DMA
         ((SerialDriver*)sdef.serial)->usart->CR1 &= ~USART_CR1_RXNEIE;
     }
-#endif // HAL_USE_SERIAL
 }
 
 /*
@@ -854,7 +837,6 @@ void UARTDriver::set_stop_bits(int n)
         // not possible
         return;
     }
-#if HAL_USE_SERIAL
     // stop and start to take effect
     sdStop((SerialDriver*)sdef.serial);
     
@@ -872,7 +854,6 @@ void UARTDriver::set_stop_bits(int n)
         //because we will handle them via DMA
         ((SerialDriver*)sdef.serial)->usart->CR1 &= ~USART_CR1_RXNEIE;
     }
-#endif // HAL_USE_SERIAL
 }
 
 

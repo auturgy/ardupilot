@@ -20,8 +20,6 @@
 #include "ch.h"
 #include "hal.h"
 
-#if HAL_USE_PWM == TRUE
-
 class ChibiOS::RCOutput : public AP_HAL::RCOutput {
 public:
     void     init();
@@ -118,5 +116,3 @@ private:
     // trigger oneshot pulses
     void trigger_oneshot(void);
 };
-
-#endif // HAL_USE_PWM

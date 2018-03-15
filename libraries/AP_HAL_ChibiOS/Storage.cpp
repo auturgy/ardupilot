@@ -15,6 +15,8 @@
  * Code by Andrew Tridgell and Siddharth Bharat Purohit
  */
 #include <AP_HAL/AP_HAL.h>
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+
 #include <AP_BoardConfig/AP_BoardConfig.h>
 
 #include "Storage.h"
@@ -22,7 +24,6 @@
 
 using namespace ChibiOS;
 
-#ifndef HAL_USE_EMPTY_STORAGE
 
 extern const AP_HAL::HAL& hal;
 
@@ -197,4 +198,4 @@ bool Storage::_flash_erase_ok(void)
     return !hal.util->get_soft_armed();
 }
 
-#endif // HAL_USE_EMPTY_STORAGE
+#endif // CONFIG_HAL_BOARD

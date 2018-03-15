@@ -18,8 +18,6 @@
 #include <AP_Math/AP_Math.h>
 #include <AP_BoardConfig/AP_BoardConfig.h>
 
-#if HAL_USE_PWM == TRUE
-
 using namespace ChibiOS;
 
 extern const AP_HAL::HAL& hal;
@@ -496,5 +494,3 @@ void RCOutput::timer_tick(void)
         trigger_oneshot();
     }
 }
-
-#endif // HAL_USE_PWM

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AP_HAL_ChibiOS.h"
-
 #include "ch.h"
 #include "hal.h"
 
@@ -111,8 +110,6 @@
 
 #define TONE_NUMBER_OF_TUNES 11
 
-#ifdef HAL_PWM_ALARM
-
 namespace ChibiOS {
 
 class ToneAlarm {
@@ -152,4 +149,3 @@ private:
 };
 
 }
-#endif // HAL_PWM_ALARM
