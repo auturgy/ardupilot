@@ -962,9 +962,7 @@ private:
 #if AUTOTUNE_ENABLED == ENABLED
     ModeAutoTune mode_autotune;
 #endif
-#if MODE_BRAKE_ENABLED == ENABLED
     ModeBrake mode_brake;
-#endif
     ModeCircle mode_circle;
 #if MODE_DRIFT_ENABLED == ENABLED
     ModeDrift mode_drift;
