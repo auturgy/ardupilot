@@ -371,12 +371,9 @@ void SoloGimbal::update_target(Vector3f newTarget)
     _att_target_euler_rad.y = constrain_float(_att_target_euler_rad.y,radians(-90),radians(0));
 }
 
-void SoloGimbal::write_logs()
+void SoloGimbal::write_logs(DataFlash_Class* dataflash)
 {
-    DataFlash_Class *dataflash = DataFlash_Class::instance();
-    if (dataflash == nullptr) {
-        return;
-    }
+    if (dataflash == nullptr) return;
 
     uint32_t tstamp = AP_HAL::millis();
     Vector3f eulerEst;
