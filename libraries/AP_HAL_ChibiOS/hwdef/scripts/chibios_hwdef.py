@@ -362,7 +362,7 @@ MEMORY
     ram0  : org = 0x20000000, len = %uk
 }
 
-INCLUDE ../../libraries/AP_HAL_ChibiOS/hwdef/common/common.ld
+INCLUDE common.ld
 ''' % (flash_base, flash_length, ram_size))
 
 
