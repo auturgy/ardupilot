@@ -1,1 +1,1 @@
-flash-10000.ld
+flash_8000000.ld

@@ -136,7 +136,7 @@ SECTIONS
 
   /* Uninitialized data section */
   . = ALIGN(4);
-  .bss (NOLOAD):
+  .bss :
   {
     /* This is used by the startup in order to initialize the .bss secion */
     _sbss = .;         /* define a global symbol at bss start */
@@ -151,7 +151,7 @@ SECTIONS
   } >RAM
 
   /* User_heap_stack section, used to check that there is enough RAM left */
-  ._user_heap_stack (NOLOAD):
+  ._user_heap_stack :
   {
     . = ALIGN(4);
     PROVIDE ( end = . );

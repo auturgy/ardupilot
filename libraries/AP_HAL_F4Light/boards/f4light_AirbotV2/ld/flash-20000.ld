@@ -33,8 +33,7 @@
 ENTRY(Reset_Handler)
 
 /* Highest address of the user mode stack */
-/* _estack    = 0x20020000; */   /* end of 128K RAM */ 
-   _estack    = 0x10010000;      /* end of 64k CCM */
+_estack = 0x20020000;    /* end of 128K RAM */
 
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0;      /* required amount of heap  */
@@ -43,10 +42,8 @@ _Min_Stack_Size = 0x800; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-  FLASH0 (rx)     : ORIGIN = 0x08000000, LENGTH = 32K 
-  FLASH (rx)      : ORIGIN = 0x08010000, LENGTH = 960K
+  FLASH (rx)      : ORIGIN = 0x08020000, LENGTH = 896K
   RAM (xrw)       : ORIGIN = 0x20000000, LENGTH = 128K
-  CCM (rw)        : ORIGIN = 0x10000000, LENGTH = 64K
   MEMORY_B1 (rx)  : ORIGIN = 0x60000000, LENGTH = 0K
 }
 
@@ -57,8 +54,6 @@ SECTIONS
   .isr_vector :
   {
     . = ALIGN(4);
-    __isr_vector_start = .;
-
     KEEP(*(.isr_vector)) /* Startup code */
     . = ALIGN(4);
   } >FLASH
@@ -115,7 +110,7 @@ SECTIONS
   _sidata = .;
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data : 
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -149,7 +144,7 @@ SECTIONS
     PROVIDE ( end = . );
     PROVIDE ( _end = . );
     . = . + _Min_Heap_Size;
-/*    . = . + _Min_Stack_Size; */
+    . = . + _Min_Stack_Size;
     . = ALIGN(4);
   } >RAM
 
@@ -162,14 +157,6 @@ SECTIONS
     *(.mb1rodata)      /* read-only data (constants) */
     *(.mb1rodata*)
   } >MEMORY_B1
-
-    .ccm : {
-      . = ALIGN(4);
-      _sccm = .;
-      *(.ccm)
-      . = ALIGN(4);      
-      _eccm = .;
-    }>CCM
 
   /* Remove information from the standard libraries */
   /DISCARD/ :
