@@ -71,6 +71,4 @@
 // #define ADSB_ENABLED          DISABLED
 
 
-#define LOGGING_ENABLED ENABLED
-
-#define STATS_ENABLED DISABLED // to reduce flash degradation
+ #define LOGGING_ENABLED ENABLED
