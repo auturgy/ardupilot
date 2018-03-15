@@ -77,9 +77,10 @@ const AP_Param::GroupInfo AP_Arming::var_info[] = {
 
 //The function point is particularly hacky, hacky, tacky
 //but I don't want to reimplement messaging to GCS at the moment:
-AP_Arming::AP_Arming(const AP_AHRS &ahrs_ref, Compass &compass,
+AP_Arming::AP_Arming(const AP_AHRS &ahrs_ref, const AP_Baro &baro, Compass &compass,
                      const AP_BattMonitor &battery) :
     ahrs(ahrs_ref),
+    barometer(baro),
     _compass(compass),
     _battery(battery),
     armed(false),
@@ -115,7 +116,7 @@ bool AP_Arming::barometer_checks(bool report)
 {
     if ((checks_to_perform & ARMING_CHECK_ALL) ||
         (checks_to_perform & ARMING_CHECK_BARO)) {
-        if (!AP::baro().all_healthy()) {
+        if (!barometer.all_healthy()) {
             if (report) {
                 gcs().send_text(MAV_SEVERITY_CRITICAL, "PreArm: Barometer not healthy");
             }
