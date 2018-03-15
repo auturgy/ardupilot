@@ -28,21 +28,12 @@ protected:
     // returns a string for this flightmode, exactly 4 bytes
     virtual const char *name4() const = 0;
 
-    // navigation support functions
+    // navigation support functions:
     void update_navigation();
     virtual void run_autopilot() {}
     virtual uint32_t wp_distance() const { return 0; }
     virtual int32_t wp_bearing() const { return 0; }
     virtual bool in_guided_mode() const { return false; }
-
-    // pilot input processing
-    void get_pilot_desired_lean_angles(float roll_in, float pitch_in, float &roll_out, float &pitch_out, float angle_max);
-
-    // takeoff support
-    bool takeoff_triggered(float target_climb_rate) const;
-
-    // helper functions
-    void zero_throttle_and_relax_ac();
 
     // convenience references to avoid code churn in conversion:
     Parameters &g;
@@ -61,6 +52,9 @@ protected:
     ap_t &ap;
     takeoff_state_t &takeoff_state;
 
+    // takeoff support
+    bool takeoff_triggered(float target_climb_rate) const;
+
     // gnd speed limit required to observe optical flow sensor limits
     float &ekfGndSpdLimit;
 
@@ -74,6 +68,9 @@ protected:
 #if FRAME_CONFIG == HELI_FRAME
     heli_flags_t &heli_flags;
 #endif
+
+    // mode.cpp
+    void get_pilot_desired_lean_angles(float roll_in, float pitch_in, float &roll_out, float &pitch_out, float angle_max);
 
     // pass-through functions to reduce code churn on conversion;
     // these are candidates for moving into the Mode base
@@ -102,6 +99,8 @@ protected:
     uint16_t get_pilot_speed_dn(void);
 
     // end pass-through functions
+
+    void zero_throttle_and_relax_ac();
 };
 
 
