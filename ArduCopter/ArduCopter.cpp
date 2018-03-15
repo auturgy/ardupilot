@@ -341,9 +341,7 @@ void Copter::ten_hz_logging_loop()
         attitude_control->control_monitor_log();
         Log_Write_Proximity();
 #if BEACON_ENABLED == ENABLED
-        if (g2.beacon.enabled()) {
-            DataFlash.Log_Write_Beacon(g2.beacon);
-        }
+        DataFlash.Log_Write_Beacon(g2.beacon);
 #endif
     }
 #if FRAME_CONFIG == HELI_FRAME
