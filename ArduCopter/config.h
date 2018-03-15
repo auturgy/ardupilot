@@ -274,12 +274,6 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
-// Drift - fly vehicle in altitude-held, coordinated-turn mode
-#ifndef MODE_DRIFT_ENABLED
-# define MODE_DRIFT_ENABLED ENABLED
-#endif
-
-//////////////////////////////////////////////////////////////////////////////
 // Loiter mode - allows vehicle to hold global position
 #ifndef MODE_LOITER_ENABLED
 # define MODE_LOITER_ENABLED ENABLED
