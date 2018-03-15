@@ -38,11 +38,9 @@ Copter::Mode *Copter::mode_from_mode_num(const uint8_t mode)
     Copter::Mode *ret = nullptr;
 
     switch (mode) {
-#if MODE_ACRO_ENABLED == ENABLED
         case ACRO:
             ret = &mode_acro;
             break;
-#endif
 
         case STABILIZE:
             ret = &mode_stabilize;
