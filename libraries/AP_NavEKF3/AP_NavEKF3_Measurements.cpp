@@ -603,11 +603,10 @@ void NavEKF3_core::readBaroData()
 {
     // check to see if baro measurement has changed so we know if a new measurement has arrived
     // limit update rate to avoid overflowing the FIFO buffer
-    const AP_Baro &baro = AP::baro();
-    if (baro.get_last_update() - lastBaroReceived_ms > frontend->sensorIntervalMin_ms) {
+    if (frontend->_baro.get_last_update() - lastBaroReceived_ms > frontend->sensorIntervalMin_ms) {
         frontend->logging.log_baro = true;
 
-        baroDataNew.hgt = baro.get_altitude();
+        baroDataNew.hgt = frontend->_baro.get_altitude();
 
         // If we are in takeoff mode, the height measurement is limited to be no less than the measurement at start of takeoff
         // This prevents negative baro disturbances due to copter downwash corrupting the EKF altitude during initial ascent
@@ -616,7 +615,7 @@ void NavEKF3_core::readBaroData()
         }
 
         // time stamp used to check for new measurement
-        lastBaroReceived_ms = baro.get_last_update();
+        lastBaroReceived_ms = frontend->_baro.get_last_update();
 
         // estimate of time height measurement was taken, allowing for delays
         baroDataNew.time_ms = lastBaroReceived_ms - frontend->_hgtDelay_ms;
