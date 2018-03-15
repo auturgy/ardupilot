@@ -53,6 +53,9 @@ private:
     // battery voltage
     float voltage;
 
+    // what rcout channel is being calibrated
+    uint8_t channel;
+
     // is calibration running?
     bool running;
 

@@ -49,4 +49,5 @@ private:
 
     uint8_t _compass_instance;
     bool _initialised;
+    float compass_len;
 };
