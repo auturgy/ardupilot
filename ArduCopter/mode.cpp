@@ -76,11 +76,9 @@ Copter::Mode *Copter::mode_from_mode_num(const uint8_t mode)
             ret = &mode_land;
             break;
 
-#if MODE_RTL_ENABLED == ENABLED
         case RTL:
             ret = &mode_rtl;
             break;
-#endif
 
 #if MODE_DRIFT_ENABLED == ENABLED
         case DRIFT:
