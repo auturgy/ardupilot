@@ -201,11 +201,6 @@ void Plane::init_ardupilot()
     }
 #endif
 
-// init cargo gripper
-#if GRIPPER_ENABLED == ENABLED
-    g2.gripper.init();
-#endif
-
     // disable safety if requested
     BoardConfig.init_safety();
 }
