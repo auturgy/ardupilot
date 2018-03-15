@@ -236,10 +236,8 @@ void Copter::init_ardupilot()
     mission.init();
 #endif
 
-#if MODE_SMARTRTL_ENABLED == ENABLED
     // initialize SmartRTL
     g2.smart_rtl.init();
-#endif
 
     // initialise DataFlash library
 #if MODE_AUTO_ENABLED == ENABLED

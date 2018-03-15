@@ -944,11 +944,9 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
     AP_SUBGROUPINFO(toy_mode, "TMODE", 20, ParametersG2, ToyMode),
 #endif
 
-#if MODE_SMARTRTL_ENABLED == ENABLED
     // @Group: SRTL_
     // @Path: ../libraries/AP_SmartRTL/AP_SmartRTL.cpp
     AP_SUBGROUPINFO(smart_rtl, "SRTL_", 21, ParametersG2, AP_SmartRTL),
-#endif
 
 #if WINCH_ENABLED == ENABLED
     // @Group: WENC
@@ -999,9 +997,8 @@ ParametersG2::ParametersG2(void)
 #if ADVANCED_FAILSAFE == ENABLED
     ,afs(copter.mission, copter.barometer, copter.gps, copter.rcmap)
 #endif
-#if MODE_SMARTRTL_ENABLED == ENABLED
     ,smart_rtl(copter.ahrs)
-#endif
+    ,temp_calibration(copter.barometer, copter.ins)
 #if !HAL_MINIMIZE_FEATURES && OPTFLOW == ENABLED
     ,mode_flowhold_ptr(&copter.mode_flowhold)
 #endif
