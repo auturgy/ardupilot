@@ -103,6 +103,7 @@ class Board:
             env.CFLAGS += [
                 '-g',
                 '-O0',
+                '-Wno-trigraphs',
             ]
 
         env.CXXFLAGS += [
