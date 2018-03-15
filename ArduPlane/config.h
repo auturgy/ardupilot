@@ -355,7 +355,3 @@
 #else
 # define HAVE_PX4_MIXER 0
 #endif
-
-#ifndef STATS_ENABLED
- # define STATS_ENABLED ENABLED
-#endif

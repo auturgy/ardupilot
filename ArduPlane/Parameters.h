@@ -518,10 +518,8 @@ public:
     // button reporting library
     AP_Button button;
 
-#if STATS_ENABLED == ENABLED
     // vehicle statistics
     AP_Stats stats;
-#endif
 
     // internal combustion engine control
     AP_ICEngine ice_control;
