@@ -874,9 +874,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
 
     // @Group: BCN
     // @Path: ../libraries/AP_Beacon/AP_Beacon.cpp
-#if BEACON_ENABLED == ENABLED
     AP_SUBGROUPINFO(beacon, "BCN", 14, ParametersG2, AP_Beacon),
-#endif
 
 #if PROXIMITY_ENABLED == ENABLED
     // @Group: PRX
@@ -996,10 +994,7 @@ const AP_Param::GroupInfo ParametersG2::var_info[] = {
   constructor for g2 object
  */
 ParametersG2::ParametersG2(void)
-    : temp_calibration(copter.barometer, copter.ins)
-#if BEACON_ENABLED == ENABLED
-    , beacon(copter.serial_manager)
-#endif
+    : beacon(copter.serial_manager)
 #if PROXIMITY_ENABLED == ENABLED
     , proximity(copter.serial_manager)
 #endif
