@@ -128,7 +128,7 @@ USB_STRING_SERIAL  "%SERIAL%"
 # drivers expect
 
 # order of I2C buses
-I2C_ORDER I2C2 I2C1
+I2C_ORDER I2C2
 
 # now the UART order. These map to the hal.uartA to hal.uartF
 # objects. If you use a shorter list then HAL_Empty::UARTDriver
@@ -257,8 +257,8 @@ PB12 CAN2_RX CAN2
 
 # now the first I2C bus. The pin speeds are automatically setup
 # correctly, but can be overridden here if needed.
-PB8 I2C1_SCL I2C1
-PB9 I2C1_SDA I2C1
+#PB8 I2C1_SCL I2C1
+#PB9 I2C1_SDA I2C1
 
 # now the 2nd I2C bus
 PB10 I2C2_SCL I2C2
@@ -310,8 +310,10 @@ PD7 BARO_CS CS
 PE4 MPU_EXT_CS CS
 
 # the first CAN bus
-PD0 CAN1_RX CAN1
-PD1 CAN1_TX CAN1
+#PD0 CAN1_RX CAN1
+#PD1 CAN1_TX CAN1
+PB9 CAN1_RX CAN1
+PB8 CAN1_TX CAN1
 
 # Another USART, this one for telem1. This one has RTS and CTS lines
 # USART2 serial2 telem1
