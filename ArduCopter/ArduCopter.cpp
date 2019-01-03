@@ -136,7 +136,7 @@ const AP_Scheduler::Task Copter::scheduler_tasks[] = {
     SCHED_TASK(gpsglitch_check,       10,     50),
     SCHED_TASK(landinggear_update,    10,     75),
     SCHED_TASK(lost_vehicle_check,    10,     50),
-    SCHED_TASK(gcs_check_input,      400,    180),
+    SCHED_TASK(gcs_update,           400,    180),
     SCHED_TASK(gcs_send_heartbeat,     1,    110),
     SCHED_TASK(gcs_send_deferred,     50,    550),
     SCHED_TASK(gcs_data_stream_send,  50,    550),
@@ -564,7 +564,7 @@ void Copter::read_AHRS(void)
     //-----------------------------------------------
 #if HIL_MODE != HIL_MODE_DISABLED
     // update hil before ahrs update
-    gcs_check_input();
+    gcs_update();
 #endif
 
     // we tell AHRS to skip INS update as we have already done it in fast_loop()
@@ -587,9 +587,9 @@ void Copter::update_altitude()
 void Copter::publish_osd_info()
 {
     AP_OSD::NavInfo nav_info;
-    nav_info.wp_distance = flightmode->wp_distance();
+    nav_info.wp_distance = flightmode->wp_distance() * 1.0e-2f;
     nav_info.wp_bearing = flightmode->wp_bearing();
-    nav_info.wp_xtrack_error = flightmode->crosstrack_error();
+    nav_info.wp_xtrack_error = flightmode->crosstrack_error() * 1.0e-2f;
     nav_info.wp_number = mission.get_current_nav_index();
     osd.set_nav_info(nav_info);
 }

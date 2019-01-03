@@ -291,6 +291,13 @@ public:
         _prev_nav_cmd_wp_index(AP_MISSION_CMD_INDEX_NONE),
         _last_change_time_ms(0)
     {
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+        if (_singleton != nullptr) {
+            AP_HAL::panic("Mission must be singleton");
+        }
+#endif
+        _singleton = this;
+
         // load parameter defaults
         AP_Param::setup_object_defaults(this, var_info);
 
@@ -302,6 +309,11 @@ public:
         _flags.state = MISSION_STOPPED;
         _flags.nav_cmd_loaded = false;
         _flags.do_cmd_loaded = false;
+    }
+
+    // get singleton instance
+    static AP_Mission *get_singleton() {
+        return _singleton;
     }
 
     /* Do not allow copies */
@@ -353,7 +365,6 @@ public:
     void reset();
 
     /// clear - clears out mission
-    ///     returns true if mission was running so it could not be cleared
     bool clear();
 
     /// truncate - truncate any mission items beyond given index
@@ -460,10 +471,18 @@ public:
     // available.
     bool jump_to_landing_sequence(void);
 
+    // get a reference to the AP_Mission semaphore, allowing an external caller to lock the
+    // storage while working with multiple waypoints
+    HAL_Semaphore_Recursive &get_semaphore(void) {
+        return _rsem;
+    }
+
     // user settable parameters
     static const struct AP_Param::GroupInfo var_info[];
 
 private:
+    static AP_Mission *_singleton;
+
     static StorageAccess _storage;
 
     struct Mission_Flags {
@@ -480,11 +499,15 @@ private:
     /// complete - mission is marked complete and clean-up performed including calling the mission_complete_fn
     void complete();
 
+    bool verify_command(const Mission_Command& cmd);
+    bool start_command(const Mission_Command& cmd);
+
     /// advance_current_nav_cmd - moves current nav command forward
+    //      starting_index is used to set the index from which searching will begin, leave as 0 to search from the current navigation target
     ///     do command will also be loaded
     ///     accounts for do-jump commands
     //      returns true if command is advanced, false if failed (i.e. mission completed)
-    bool advance_current_nav_cmd();
+    bool advance_current_nav_cmd(uint16_t starting_index = 0);
 
     /// advance_current_do_cmd - moves current do command forward
     ///     accounts for do-jump commands
@@ -551,4 +574,17 @@ private:
 
     // last time that mission changed
     uint32_t _last_change_time_ms;
+
+    // multi-thread support. This is static so it can be used from
+    // const functions
+    static HAL_Semaphore_Recursive _rsem;
+
+    // mission items common to all vehicles:
+    bool start_command_do_gripper(const AP_Mission::Mission_Command& cmd);
+    bool start_command_do_servorelayevents(const AP_Mission::Mission_Command& cmd);
+    bool start_command_camera(const AP_Mission::Mission_Command& cmd);
+};
+
+namespace AP {
+    AP_Mission *mission();
 };

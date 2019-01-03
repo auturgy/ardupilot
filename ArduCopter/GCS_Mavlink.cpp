@@ -322,24 +322,10 @@ bool GCS_MAVLINK_Copter::try_send_message(enum ap_message id)
 #endif
         break;
 
-    case MSG_MOUNT_STATUS:
-#if MOUNT == ENABLED
-        CHECK_PAYLOAD_SIZE(MOUNT_STATUS);
-        copter.camera_mount.status_msg(chan);
-#endif // MOUNT == ENABLED
-        break;
-
     case MSG_OPTICAL_FLOW:
 #if OPTFLOW == ENABLED
         CHECK_PAYLOAD_SIZE(OPTICAL_FLOW);
         send_opticalflow(copter.optflow);
-#endif
-        break;
-
-    case MSG_GIMBAL_REPORT:
-#if MOUNT == ENABLED
-        CHECK_PAYLOAD_SIZE(GIMBAL_REPORT);
-        copter.camera_mount.send_gimbal_report(chan);
 #endif
         break;
 
@@ -483,8 +469,6 @@ static const ap_message STREAM_POSITION_msgs[] = {
     MSG_LOCATION,
     MSG_LOCAL_POSITION
 };
-static const ap_message STREAM_RAW_CONTROLLER_msgs[] = {
-};
 static const ap_message STREAM_RC_CHANNELS_msgs[] = {
     MSG_SERVO_OUTPUT_RAW,
     MSG_RADIO_IN // RC_CHANNELS_RAW, RC_CHANNELS
@@ -525,7 +509,6 @@ const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
     MAV_STREAM_ENTRY(STREAM_RAW_SENSORS),
     MAV_STREAM_ENTRY(STREAM_EXTENDED_STATUS),
     MAV_STREAM_ENTRY(STREAM_POSITION),
-//    MAV_STREAM_ENTRY(STREAM_RAW_CONTROLLER),
     MAV_STREAM_ENTRY(STREAM_RC_CHANNELS),
     MAV_STREAM_ENTRY(STREAM_EXTRA1),
     MAV_STREAM_ENTRY(STREAM_EXTRA2),
@@ -605,6 +588,15 @@ MAV_RESULT GCS_MAVLINK_Copter::_handle_command_preflight_calibration(const mavli
 }
 
 
+MAV_RESULT GCS_MAVLINK_Copter::handle_command_do_set_roi(const Location &roi_loc)
+{
+    if (!check_latlng(roi_loc)) {
+        return MAV_RESULT_FAILED;
+    }
+    copter.flightmode->auto_yaw.set_roi(roi_loc);
+    return MAV_RESULT_ACCEPTED;
+}
+
 MAV_RESULT GCS_MAVLINK_Copter::handle_command_int_packet(const mavlink_command_int_t &packet)
 {
     switch(packet.command) {
@@ -660,30 +652,30 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_int_packet(const mavlink_command_i
         return MAV_RESULT_ACCEPTED;
     }
 
-    case MAV_CMD_DO_SET_ROI: {
-        // param1 : /* Region of interest mode (not used)*/
-        // param2 : /* MISSION index/ target ID (not used)*/
-        // param3 : /* ROI index (not used)*/
-        // param4 : /* empty */
-        // x : lat
-        // y : lon
-        // z : alt
-        // sanity check location
-        if (!check_latlng(packet.x, packet.y)) {
-            return MAV_RESULT_FAILED;
-        }
-        Location roi_loc;
-        roi_loc.lat = packet.x;
-        roi_loc.lng = packet.y;
-        roi_loc.alt = (int32_t)(packet.z * 100.0f);
-        copter.flightmode->auto_yaw.set_roi(roi_loc);
-        return MAV_RESULT_ACCEPTED;
-    }
     default:
         return GCS_MAVLINK::handle_command_int_packet(packet);
     }
 }
 
+MAV_RESULT GCS_MAVLINK_Copter::handle_command_mount(const mavlink_command_long_t &packet)
+{
+    // if the mount doesn't do pan control then yaw the entire vehicle instead:
+    switch (packet.command) {
+#if MOUNT == ENABLED
+    case MAV_CMD_DO_MOUNT_CONTROL:
+        if(!copter.camera_mount.has_pan_control()) {
+            copter.flightmode->auto_yaw.set_fixed_yaw(
+                (float)packet.param3 / 100.0f,
+                0.0f,
+                0,0);
+        }
+        break;
+#endif
+    default:
+        break;
+    }
+    return GCS_MAVLINK::handle_command_mount(packet);
+}
 
 MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_long_t &packet)
 {
@@ -755,7 +747,13 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_
         // param3 : unused
         // param4 : unused
         if (packet.param2 > 0.0f) {
-            copter.wp_nav->set_speed_xy(packet.param2 * 100.0f);
+            if (packet.param1 > 2.9f) { // 3 = speed down
+                copter.wp_nav->set_speed_z(packet.param2 * 100.0f, copter.wp_nav->get_speed_up());
+            } else if (packet.param1 > 1.9f) { // 2 = speed up
+                copter.wp_nav->set_speed_z(copter.wp_nav->get_speed_down(), packet.param2 * 100.0f);
+            } else {
+                copter.wp_nav->set_speed_xy(packet.param2 * 100.0f);
+            }
             return MAV_RESULT_ACCEPTED;
         }
         return MAV_RESULT_FAILED;
@@ -787,36 +785,6 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_
             }
         }
         return MAV_RESULT_FAILED;
-
-    case MAV_CMD_DO_SET_ROI:
-        // param1 : regional of interest mode (not supported)
-        // param2 : mission index/ target id (not supported)
-        // param3 : ROI index (not supported)
-        // param5 : x / lat
-        // param6 : y / lon
-        // param7 : z / alt
-        // sanity check location
-        if (!check_latlng(packet.param5, packet.param6)) {
-            return MAV_RESULT_FAILED;
-        }
-        Location roi_loc;
-        roi_loc.lat = (int32_t)(packet.param5 * 1.0e7f);
-        roi_loc.lng = (int32_t)(packet.param6 * 1.0e7f);
-        roi_loc.alt = (int32_t)(packet.param7 * 100.0f);
-        copter.flightmode->auto_yaw.set_roi(roi_loc);
-        return MAV_RESULT_ACCEPTED;
-
-#if MOUNT == ENABLED
-    case MAV_CMD_DO_MOUNT_CONTROL:
-        if(!copter.camera_mount.has_pan_control()) {
-            copter.flightmode->auto_yaw.set_fixed_yaw(
-                (float)packet.param3 / 100.0f,
-                0.0f,
-                0,0);
-        }
-        copter.camera_mount.control(packet.param1, packet.param2, packet.param3, (MAV_MOUNT_MODE) packet.param7);
-        return MAV_RESULT_ACCEPTED;
-#endif
 
 #if MODE_AUTO_ENABLED == ENABLED
     case MAV_CMD_MISSION_START:
@@ -1015,6 +983,25 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_command_long_packet(const mavlink_command_
     }
 }
 
+void GCS_MAVLINK_Copter::handle_mount_message(const mavlink_message_t* msg)
+{
+    switch (msg->msgid) {
+#if MOUNT == ENABLED
+    case MAVLINK_MSG_ID_MOUNT_CONTROL:
+        if(!copter.camera_mount.has_pan_control()) {
+            // if the mount doesn't do pan control then yaw the entire vehicle instead:
+            copter.flightmode->auto_yaw.set_fixed_yaw(
+                mavlink_msg_mount_control_get_input_c(msg)/100.0f,
+                0.0f,
+                0,
+                0);
+
+            break;
+        }
+#endif
+    }
+    GCS_MAVLINK::handle_mount_message(msg);
+}
 
 void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
 {
@@ -1028,22 +1015,6 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         break;
     }
 
-    case MAVLINK_MSG_ID_PARAM_VALUE:
-    {
-#if MOUNT == ENABLED
-        copter.camera_mount.handle_param_value(msg);
-#endif
-        break;
-    }
-
-    case MAVLINK_MSG_ID_GIMBAL_REPORT:
-    {
-#if MOUNT == ENABLED
-        handle_gimbal_report(copter.camera_mount, msg);
-#endif
-        break;
-    }
-
     case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE:       // MAV ID: 70
     {
         // allow override of RC channel values for HIL
@@ -1052,13 +1023,7 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         if(msg->sysid != copter.g.sysid_my_gcs) {
             break; // Only accept control from our gcs
         }
-        if (!copter.ap.rc_override_enable) {
-            if (copter.failsafe.rc_override_active) {  // if overrides were active previously, disable them
-                copter.failsafe.rc_override_active = false;
-                RC_Channels::clear_overrides();
-            }
-            break;
-        }
+
         uint32_t tnow = AP_HAL::millis();
 
         mavlink_rc_channels_override_t packet;
@@ -1072,9 +1037,6 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         RC_Channels::set_override(5, packet.chan6_raw, tnow);
         RC_Channels::set_override(6, packet.chan7_raw, tnow);
         RC_Channels::set_override(7, packet.chan8_raw, tnow);
-
-        // record that rc are overwritten so we can trigger a failsafe if we lose contact with groundstation
-        copter.failsafe.rc_override_active = RC_Channels::has_active_overrides();
 
         // a RC override message is considered to be a 'heartbeat' from the ground station for failsafe purposes
         copter.failsafe.last_heartbeat_ms = tnow;
@@ -1109,9 +1071,6 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         RC_Channels::set_override(uint8_t(copter.rcmap.pitch() - 1), pitch, tnow);
         RC_Channels::set_override(uint8_t(copter.rcmap.throttle() - 1), throttle, tnow);
         RC_Channels::set_override(uint8_t(copter.rcmap.yaw() - 1), yaw, tnow);
-
-        // record that rc are overwritten so we can trigger a failsafe if we lose contact with groundstation
-        copter.failsafe.rc_override_active = RC_Channels::has_active_overrides();
 
         // a manual control message is considered to be a 'heartbeat' from the ground station for failsafe purposes
         copter.failsafe.last_heartbeat_ms = tnow;
@@ -1347,6 +1306,14 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         break;
     }
 
+    case MAVLINK_MSG_ID_OBSTACLE_DISTANCE:
+    {
+#if PROXIMITY_ENABLED == ENABLED
+        copter.g2.proximity.handle_msg(msg);
+#endif
+        break;
+    }
+
 #if HIL_MODE != HIL_MODE_DISABLED
     case MAVLINK_MSG_ID_HIL_STATE:          // MAV ID: 90
     {
@@ -1414,24 +1381,6 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         copter.fence.handle_msg(*this, msg);
         break;
 #endif // AC_FENCE == ENABLED
-
-#if MOUNT == ENABLED
-    //deprecated. Use MAV_CMD_DO_MOUNT_CONFIGURE
-    case MAVLINK_MSG_ID_MOUNT_CONFIGURE:        // MAV ID: 204
-        copter.camera_mount.configure_msg(msg);
-        break;
-    //deprecated. Use MAV_CMD_DO_MOUNT_CONTROL
-    case MAVLINK_MSG_ID_MOUNT_CONTROL:
-        if(!copter.camera_mount.has_pan_control()) {
-            copter.flightmode->auto_yaw.set_fixed_yaw(
-                mavlink_msg_mount_control_get_input_c(msg)/100.0f,
-                0.0f,
-                0,
-                0);
-        }
-        copter.camera_mount.control_msg(msg);
-        break;
-#endif // MOUNT == ENABLED
 
     case MAVLINK_MSG_ID_TERRAIN_DATA:
     case MAVLINK_MSG_ID_TERRAIN_CHECK:
@@ -1503,7 +1452,7 @@ void Copter::mavlink_delay_cb()
     }
     if (tnow - last_50hz > 20) {
         last_50hz = tnow;
-        gcs_check_input();
+        gcs_update();
         gcs_data_stream_send();
         gcs_send_deferred();
         notify.update();
@@ -1527,7 +1476,7 @@ void Copter::gcs_data_stream_send(void)
 /*
  *  look for incoming commands on the GCS links
  */
-void Copter::gcs_check_input(void)
+void Copter::gcs_update(void)
 {
     gcs().update();
 }
@@ -1550,20 +1499,6 @@ AP_Mission *GCS_MAVLINK_Copter::get_mission()
 {
 #if MODE_AUTO_ENABLED == ENABLED
     return &copter.mission;
-#else
-    return nullptr;
-#endif
-}
-
-Compass *GCS_MAVLINK_Copter::get_compass() const
-{
-    return &copter.compass;
-}
-
-AP_Camera *GCS_MAVLINK_Copter::get_camera() const
-{
-#if CAMERA == ENABLED
-    return &copter.camera;
 #else
     return nullptr;
 #endif

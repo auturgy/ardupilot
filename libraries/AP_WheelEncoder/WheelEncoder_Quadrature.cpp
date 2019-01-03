@@ -67,20 +67,14 @@ void AP_WheelEncoder_Quadrature::update(void)
     update_pin(last_pin_a, get_pin_a(), last_pin_a_value);
     update_pin(last_pin_b, get_pin_b(), last_pin_b_value);
 
-    static uint32_t last_warn_ms = 0;
-    const uint32_t now = AP_HAL::millis();
-    if (now - last_warn_ms > 1000) {
-        last_warn_ms = now;
-    }
-
     // disable interrupts to prevent race with irq_handler
     void *irqstate = hal.scheduler->disable_interrupts_save();
 
     // copy distance and error count so it is accessible to front end
-    _state.distance_count = irq_state.distance_count;
-    _state.total_count = irq_state.total_count;
-    _state.error_count = irq_state.error_count;
-    _state.last_reading_ms = irq_state.last_reading_ms;
+    copy_state_to_frontend(irq_state.distance_count,
+                           irq_state.total_count,
+                           irq_state.error_count,
+                           irq_state.last_reading_ms);
 
     // restore interrupts
     hal.scheduler->restore_interrupts(irqstate);

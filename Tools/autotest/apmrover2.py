@@ -138,49 +138,76 @@ class AutoTestRover(AutoTest):
     # Drive a square in manual mode
     def drive_square(self, side=50):
         """Drive a square, Driving N then E ."""
-        self.progress("TEST SQUARE")
 
-        # use LEARNING Mode
-        self.mavproxy.send('switch 5\n')
-        self.wait_mode('MANUAL')
+        self.context_push()
+        ex = None
+        try:
+            self.progress("TEST SQUARE")
+            self.set_parameter("RC7_OPTION", 7)
+            self.set_parameter("RC8_OPTION", 58)
 
-        # first aim north
-        self.progress("\nTurn right towards north")
-        self.reach_heading_manual(10)
-        # save bottom left corner of box as waypoint
-        self.progress("Save WP 1 & 2")
-        self.save_wp()
+            self.clear_wp()
 
-        # pitch forward to fly north
-        self.progress("\nGoing north %u meters" % side)
-        self.reach_distance_manual(side)
-        # save top left corner of square as waypoint
-        self.progress("Save WP 3")
-        self.save_wp()
+            # use LEARNING Mode
+            self.mavproxy.send('switch 5\n')
+            self.wait_mode('MANUAL')
 
-        # roll right to fly east
-        self.progress("\nGoing east %u meters" % side)
-        self.reach_heading_manual(100)
-        self.reach_distance_manual(side)
-        # save top right corner of square as waypoint
-        self.progress("Save WP 4")
-        self.save_wp()
+            # first aim north
+            self.progress("\nTurn right towards north")
+            self.reach_heading_manual(10)
+            # save bottom left corner of box as home AND waypoint
+            self.progress("Save HOME")
+            self.save_wp()
 
-        # pitch back to fly south
-        self.progress("\nGoing south %u meters" % side)
-        self.reach_heading_manual(190)
-        self.reach_distance_manual(side)
-        # save bottom right corner of square as waypoint
-        self.progress("Save WP 5")
-        self.save_wp()
+            self.progress("Save WP")
+            self.save_wp()
 
-        # roll left to fly west
-        self.progress("\nGoing west %u meters" % side)
-        self.reach_heading_manual(280)
-        self.reach_distance_manual(side)
-        # save bottom left corner of square (should be near home) as waypoint
-        self.progress("Save WP 6")
-        self.save_wp()
+            # pitch forward to fly north
+            self.progress("\nGoing north %u meters" % side)
+            self.reach_distance_manual(side)
+            # save top left corner of square as waypoint
+            self.progress("Save WP")
+            self.save_wp()
+
+            # roll right to fly east
+            self.progress("\nGoing east %u meters" % side)
+            self.reach_heading_manual(100)
+            self.reach_distance_manual(side)
+            # save top right corner of square as waypoint
+            self.progress("Save WP")
+            self.save_wp()
+
+            # pitch back to fly south
+            self.progress("\nGoing south %u meters" % side)
+            self.reach_heading_manual(190)
+            self.reach_distance_manual(side)
+            # save bottom right corner of square as waypoint
+            self.progress("Save WP")
+            self.save_wp()
+
+            # roll left to fly west
+            self.progress("\nGoing west %u meters" % side)
+            self.reach_heading_manual(280)
+            self.reach_distance_manual(side)
+            # save bottom left corner of square (should be near home) as waypoint
+            self.progress("Save WP")
+            self.save_wp()
+
+            self.progress("Checking number of saved waypoints")
+            num_wp = self.save_mission_to_file(
+                os.path.join(testdir, "rover-ch7_mission.txt"))
+            if num_wp != 6:
+                raise NotAchievedException("Did not get 6 waypoints")
+
+            # TODO: actually drive the mission
+
+            self.clear_wp()
+        except Exception as e:
+            self.progress("Caught exception: %s" % str(e))
+            ex = e
+        self.context_pop()
+        if ex:
+            raise ex
 
     def drive_left_circuit(self):
         """Drive a left circuit, 50m on a side."""
@@ -359,8 +386,7 @@ class AutoTestRover(AutoTest):
             if time.time() - start > 10:
                 break
 
-        self.progress("banner not received")
-        raise MsgRcvTimeoutException()
+        raise MsgRcvTimeoutException("banner not received")
 
     def drive_brake_get_stopping_distance(self, speed):
         # measure our stopping distance:
@@ -417,12 +443,11 @@ class AutoTestRover(AutoTest):
 
         delta = distance_without_brakes - distance_with_brakes
         if delta < distance_without_brakes * 0.05:  # 5% isn't asking for much
-            self.progress("Brakes have negligible effect"
-                          "(with=%0.2fm without=%0.2fm delta=%0.2fm)" %
-                          (distance_with_brakes,
-                           distance_without_brakes,
-                           delta))
-            raise NotAchievedException()
+            raise NotAchievedException("""
+Brakes have negligible effect (with=%0.2fm without=%0.2fm delta=%0.2fm)
+""" % (distance_with_brakes,
+                   distance_without_brakes,
+                   delta))
 
         self.progress(
             "Brakes work (with=%0.2fm without=%0.2fm delta=%0.2fm)" %
@@ -443,13 +468,14 @@ class AutoTestRover(AutoTest):
                                 blocking=True,
                                 timeout=0.1)
         if m is None:
-            self.progress("Did not receive NAV_CONTROLLER_OUTPUT message")
-            raise MsgRcvTimeoutException()
+            raise MsgRcvTimeoutException(
+                "Did not receive NAV_CONTROLLER_OUTPUT message")
 
         wp_dist_min = 5
         if m.wp_dist < wp_dist_min:
-            self.progress("Did not start at least 5 metres from destination")
-            raise PreconditionFailedException()
+            raise PreconditionFailedException(
+                "Did not start at least %u metres from destination" %
+                (wp_dist_min))
 
         self.progress("NAV_CONTROLLER_OUTPUT.wp_dist looks good (%u >= %u)" %
                       (m.wp_dist, wp_dist_min,))
@@ -460,12 +486,63 @@ class AutoTestRover(AutoTest):
         home_distance = self.get_distance(HOME, pos)
         home_distance_max = 5
         if home_distance > home_distance_max:
-            self.progress("Did not get home (%u metres distant > %u)" %
-                          (home_distance, home_distance_max))
-            raise NotAchievedException()
+            raise NotAchievedException(
+                "Did not get home (%u metres distant > %u)" %
+                (home_distance, home_distance_max))
         self.mavproxy.send('switch 6\n')
         self.wait_mode('MANUAL')
         self.progress("RTL Mission OK")
+
+    def wait_distance_home_gt(self, distance, timeout=60):
+        home_distance = None
+        tstart = self.get_sim_time()
+        while self.get_sim_time() - tstart < timeout:
+            m = self.mav.recv_match(type='VFR_HUD', blocking=True)
+            pos = self.mav.location()
+            home_distance = self.get_distance(HOME, pos)
+            if home_distance > distance:
+                return
+        raise NotAchievedException("Failed to get %fm from home (now=%f)" %
+                                   (distance, home_distance))
+
+    def drive_fence_ac_avoidance(self):
+        self.context_push()
+        ex = None
+        try:
+            self.mavproxy.send("fence load Tools/autotest/rover-fence-ac-avoid.txt\n")
+            self.mavproxy.expect("Loaded 6 geo-fence")
+            self.set_parameter("FENCE_ENABLE", 0)
+            self.set_parameter("PRX_TYPE", 10)
+            self.set_parameter("RC10_OPTION", 40) # proximity-enable
+            self.reboot_sitl()
+            start = self.mav.location()
+            self.wait_ready_to_arm()
+            self.arm_vehicle()
+            # first make sure we can breach the fence:
+            self.set_rc(10, 1000)
+            self.mavproxy.send("mode acro\n")
+            self.wait_mode("ACRO")
+            self.set_rc(3, 1550)
+            self.wait_distance_home_gt(25)
+            self.mavproxy.send("mode RTL\n")
+            self.wait_mode("RTL")
+            self.mavproxy.expect("APM: Reached destination")
+            # now enable avoidance and make sure we can't:
+            self.set_rc(10, 2000)
+            self.mavproxy.send("mode acro\n")
+            self.wait_mode("ACRO")
+            self.wait_groundspeed(0, 0.7, timeout=60)
+            # watch for speed zero
+            self.wait_groundspeed(0, 0.2, timeout=120)
+
+        except Exception as e:
+            self.progress("Caught exception: %s" % str(e))
+            ex = e
+        self.context_pop()
+        self.mavproxy.send("fence clear\n")
+        self.reboot_sitl()
+        if ex:
+            raise ex
 
     def test_servorelayevents(self):
         self.mavproxy.send("relay set 0 0\n")
@@ -473,16 +550,16 @@ class AutoTestRover(AutoTest):
         self.mavproxy.send("relay set 0 1\n")
         on = self.get_parameter("SIM_PIN_MASK")
         if on == off:
-            self.progress("Pin mask unchanged after relay command")
-            raise NotAchievedException()
+            raise NotAchievedException(
+                "Pin mask unchanged after relay cmd")
         self.progress("Pin mask changed after relay command")
 
     def test_setting_modes_via_mavproxy_switch(self):
         fnoo = [(1, 'MANUAL'),
                 (2, 'MANUAL'),
                 (3, 'RTL'),
-                #                (4, 'AUTO'), // no mission, can't set auto
-                (5, 'RTL'), # non-existant mode, should stay in RTL
+                # (4, 'AUTO'),  # no mission, can't set auto
+                (5, 'RTL'),  # non-existant mode, should stay in RTL
                 (6, 'MANUAL')]
         for (num, expected) in fnoo:
             self.mavproxy.send('switch %u\n' % num)
@@ -505,7 +582,7 @@ class AutoTestRover(AutoTest):
 
     def test_setting_modes_via_modeswitch(self):
         # test setting of modes through mode switch
-        self.context_push();
+        self.context_push()
         ex = None
         try:
             self.set_parameter("MODE_CH", 8)
@@ -526,13 +603,13 @@ class AutoTestRover(AutoTest):
             self.progress("Exception caught")
             ex = e
 
-        self.context_pop();
+        self.context_pop()
 
         if ex is not None:
             raise ex
 
     def test_setting_modes_via_auxswitches(self):
-        self.context_push();
+        self.context_push()
         ex = None
         try:
             self.set_parameter("MODE5", 1)
@@ -564,7 +641,7 @@ class AutoTestRover(AutoTest):
             self.progress("Exception caught")
             ex = e
 
-        self.context_pop();
+        self.context_pop()
 
         if ex is not None:
             raise ex
@@ -573,6 +650,9 @@ class AutoTestRover(AutoTest):
         self.context_push();
         ex = None
         try:
+            self.set_parameter("RC12_OPTION", 46)
+            self.reboot_sitl()
+
             self.mavproxy.send('switch 6\n')  # Manual mode
             self.wait_mode('MANUAL')
             self.wait_ready_to_arm()
@@ -582,8 +662,12 @@ class AutoTestRover(AutoTest):
             normal_rc_throttle = 1700
             self.mavproxy.send('rc 3 %u\n' % normal_rc_throttle)
             self.wait_groundspeed(5, 100)
-            # now override to go backwards:
-            throttle_override = 1400
+
+            # allow overrides:
+            self.set_rc(12, 2000)
+
+            # now override to stop:
+            throttle_override = 1500
             while True:
                 print("Sending throttle of %u" % (throttle_override,))
                 self.mav.mav.rc_channels_override_send(
@@ -598,15 +682,46 @@ class AutoTestRover(AutoTest):
                     65535, # chan7_raw
                     65535) # chan8_raw
 
-
-                m = self.mav.recv_match(type='RC_CHANNELS_RAW', blocking=True)
-                print("%s" % m)
-                if m.chan3_raw == throttle_override:
+                m = self.mav.recv_match(type='VFR_HUD', blocking=True)
+                want_speed = 2.0
+                print("Speed=%f want=<%f" % (m.groundspeed, want_speed))
+                if m.groundspeed < want_speed:
                     break
+
+            # now override to stop - but set the switch on the RC
+            # transmitter to deny overrides; this should send the
+            # speed back up to 5 metres/second:
+            self.set_rc(12, 1000)
+
+            throttle_override = 1500
+            while True:
+                print("Sending throttle of %u" % (throttle_override,))
+                self.mav.mav.rc_channels_override_send(
+                    1, # target system
+                    1, # targe component
+                    65535, # chan1_raw
+                    65535, # chan2_raw
+                    throttle_override, # chan3_raw
+                    65535, # chan4_raw
+                    65535, # chan5_raw
+                    65535, # chan6_raw
+                    65535, # chan7_raw
+                    65535) # chan8_raw
+
+                m = self.mav.recv_match(type='VFR_HUD', blocking=True)
+                want_speed = 5.0
+                print("Speed=%f want=>%f" % (m.groundspeed, want_speed))
+
+                if m.groundspeed > want_speed:
+                    break
+
+            # re-enable RC overrides
+            self.set_rc(12, 2000)
+
             # check we revert to normal RC inputs when gcs overrides cease:
             self.progress("Waiting for RC to revert to normal RC input")
             while True:
-                m = self.mav.recv_match(type='RC_CHANNELS_RAW', blocking=True)
+                m = self.mav.recv_match(type='RC_CHANNELS', blocking=True)
                 print("%s" % m)
                 if m.chan3_raw == normal_rc_throttle:
                     break
@@ -616,7 +731,56 @@ class AutoTestRover(AutoTest):
             ex = e
 
         self.context_pop();
+        self.reboot_sitl()
 
+        if ex is not None:
+            raise ex
+
+    def test_camera_mission_items(self):
+        self.context_push()
+        ex = None
+        try:
+            self.mavproxy.send('wp load %s\n' %
+                               os.path.join(testdir, "rover-camera-mission.txt"))
+            self.wait_ready_to_arm()
+            self.mavproxy.send('mode auto\n')
+            self.wait_mode('AUTO')
+            self.wait_ready_to_arm()
+            self.arm_vehicle()
+            prev_cf = None
+            while True:
+                cf = self.mav.recv_match(type='CAMERA_FEEDBACK', blocking=True)
+                if prev_cf is None:
+                    prev_cf = cf
+                    continue
+                dist_travelled = self.get_distance_int(prev_cf, cf)
+                prev_cf = cf
+                mc = self.mav.messages.get("MISSION_CURRENT", None)
+                if mc is None:
+                    continue
+                elif mc.seq == 2:
+                    expected_distance = 2
+                elif mc.seq == 4:
+                    expected_distance = 5
+                elif mc.seq ==5:
+                    break
+                else:
+                    continue
+                self.progress("Expected distance %f got %f" %
+                              (expected_distance, dist_travelled))
+                error = abs(expected_distance - dist_travelled)
+                # Rover moves at ~5m/s; we appear to do something at
+                # 5Hz, so we do see over a meter of error!
+                max_error = 1.5
+                if error > max_error:
+                    raise NotAchievedException("Camera distance error: %f (%f)" %
+                                               (error, max_error))
+
+            self.disarm_vehicle()
+        except Exception as e:
+            self.progress("Exception caught")
+            ex = e
+        self.context_pop()
         if ex is not None:
             raise ex
 
@@ -643,11 +807,8 @@ class AutoTestRover(AutoTest):
             self.mavproxy.send('switch 6\n')  # Manual mode
             self.wait_mode('MANUAL')
 
-            self.run_test("Test Sprayer", self.test_sprayer)
-
             self.wait_ready_to_arm()
             self.run_test("Arm features", self.test_arm_feature)
-            self.arm_vehicle()
 
             self.run_test("Set modes via mavproxy switch",
                           self.test_setting_modes_via_mavproxy_switch)
@@ -661,6 +822,8 @@ class AutoTestRover(AutoTest):
             self.run_test("Set modes via auxswitches",
                           self.test_setting_modes_via_auxswitches)
 
+            self.arm_vehicle()
+
             self.run_test("Drive an RTL Mission", self.drive_rtl_mission)
 
             self.run_test("Learn/Drive Square with Ch7 option",
@@ -670,7 +833,7 @@ class AutoTestRover(AutoTest):
                           self.drive_mission_rover1)
 
             # disabled due to frequent failures in travis. This test needs re-writing
-            #self.run_test("Drive Brake", self.drive_brake)
+            # self.run_test("Drive Brake", self.drive_brake)
 
             self.run_test("Disarm Vehicle", self.disarm_vehicle)
 
@@ -680,14 +843,24 @@ class AutoTestRover(AutoTest):
                           self.do_get_autopilot_capabilities)
 
             self.run_test("Set mode via MAV_COMMAND_DO_SET_MODE",
-                          self.do_set_mode_via_command_long)
+                          lambda: self.do_set_mode_via_command_long("HOLD"))
+            self.mavproxy.send('switch 6\n')  # Manual mode
+            self.wait_mode('MANUAL')
+            self.run_test("Set mode via MAV_COMMAND_DO_SET_MODE with MAVProxy",
+                          lambda: self.mavproxy_do_set_mode_via_command_long("HOLD"))
 
             self.run_test("Test ServoRelayEvents",
                           self.test_servorelayevents)
 
-            self.disarm_vehicle()
-
             self.run_test("Test RC overrides", self.test_rc_overrides)
+
+            self.run_test("Test Sprayer", self.test_sprayer)
+
+            self.run_test("Test AC Avoidance switch",
+                          self.drive_fence_ac_avoidance)
+
+            self.run_test("Test Camera Mission Items",
+                          self.test_camera_mission_items)
 
             self.run_test("Download logs", lambda:
                           self.log_download(
@@ -699,7 +872,7 @@ class AutoTestRover(AutoTest):
     #            self.progress("Failed RTL")
     #            failed = True
 
-        except pexpect.TIMEOUT as e:
+        except pexpect.TIMEOUT:
             self.progress("Failed with timeout")
             self.fail_list.append(("*timeout*", None))
 

@@ -285,11 +285,15 @@ void Copter::ModeAuto::circle_movetoedge_start(const Location_Class &circle_cent
         // if we are outside the circle, point at the edge, otherwise hold yaw
         const Vector3f &curr_pos = inertial_nav.get_position();
         float dist_to_center = norm(circle_center_neu.x - curr_pos.x, circle_center_neu.y - curr_pos.y);
-        if (dist_to_center > copter.circle_nav->get_radius() && dist_to_center > 500) {
-            auto_yaw.set_mode_to_default(false);
-        } else {
-            // vehicle is within circle so hold yaw to avoid spinning as we move to edge of circle
-            auto_yaw.set_mode(AUTO_YAW_HOLD);
+        // initialise yaw
+        // To-Do: reset the yaw only when the previous navigation command is not a WP.  this would allow removing the special check for ROI
+        if (auto_yaw.mode() != AUTO_YAW_ROI) {
+            if (dist_to_center > copter.circle_nav->get_radius() && dist_to_center > 500) {
+                auto_yaw.set_mode_to_default(false);
+            } else {
+                // vehicle is within circle so hold yaw to avoid spinning as we move to edge of circle
+                auto_yaw.set_mode(AUTO_YAW_HOLD);
+            }
         }
     } else {
         circle_start();
@@ -452,24 +456,6 @@ bool Copter::ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
         do_set_home(cmd);
         break;
 
-    case MAV_CMD_DO_SET_SERVO:
-        copter.ServoRelayEvents.do_set_servo(cmd.content.servo.channel, cmd.content.servo.pwm);
-        break;
-        
-    case MAV_CMD_DO_SET_RELAY:
-        copter.ServoRelayEvents.do_set_relay(cmd.content.relay.num, cmd.content.relay.state);
-        break;
-        
-    case MAV_CMD_DO_REPEAT_SERVO:
-        copter.ServoRelayEvents.do_repeat_servo(cmd.content.repeat_servo.channel, cmd.content.repeat_servo.pwm,
-                                         cmd.content.repeat_servo.repeat_count, cmd.content.repeat_servo.cycle_time * 1000.0f);
-        break;
-        
-    case MAV_CMD_DO_REPEAT_RELAY:
-        copter.ServoRelayEvents.do_repeat_relay(cmd.content.repeat_relay.num, cmd.content.repeat_relay.repeat_count,
-                                         cmd.content.repeat_relay.cycle_time * 1000.0f);
-        break;
-
     case MAV_CMD_DO_SET_ROI:                // 201
         // point the copter and camera at a region of interest (ROI)
         do_roi(cmd);
@@ -492,32 +478,9 @@ bool Copter::ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
 #endif //AC_FENCE == ENABLED
         break;
 
-#if CAMERA == ENABLED
-    case MAV_CMD_DO_CONTROL_VIDEO:                      // Control on-board camera capturing. |Camera ID (-1 for all)| Transmission: 0: disabled, 1: enabled compressed, 2: enabled raw| Transmission mode: 0: video stream, >0: single images every n seconds (decimal)| Recording: 0: disabled, 1: enabled compressed, 2: enabled raw| Empty| Empty| Empty|
-        break;
-
-    case MAV_CMD_DO_DIGICAM_CONFIGURE:                  // Mission command to configure an on-board camera controller system. |Modes: P, TV, AV, M, Etc| Shutter speed: Divisor number for one second| Aperture: F stop number| ISO number e.g. 80, 100, 200, Etc| Exposure type enumerator| Command Identity| Main engine cut-off time before camera trigger in seconds/10 (0 means no cut-off)|
-        do_digicam_configure(cmd);
-        break;
-
-    case MAV_CMD_DO_DIGICAM_CONTROL:                    // Mission command to control an on-board camera controller system. |Session control e.g. show/hide lens| Zoom's absolute position| Zooming step value to offset zoom from the current position| Focus Locking, Unlocking or Re-locking| Shooting Command| Command Identity| Empty|
-        do_digicam_control(cmd);
-        break;
-
-    case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
-        copter.camera.set_trigger_distance(cmd.content.cam_trigg_dist.meters);
-        break;
-#endif
-
 #if PARACHUTE == ENABLED
     case MAV_CMD_DO_PARACHUTE:                          // Mission command to configure or release parachute
         do_parachute(cmd);
-        break;
-#endif
-
-#if GRIPPER_ENABLED == ENABLED
-    case MAV_CMD_DO_GRIPPER:                            // Mission command to control gripper
-        do_gripper(cmd);
         break;
 #endif
 
@@ -534,8 +497,8 @@ bool Copter::ModeAuto::start_command(const AP_Mission::Mission_Command& cmd)
 #endif
 
     default:
-        // do nothing with unrecognized MAVLink messages
-        break;
+        // unable to use the command, allow the vehicle to try the next command
+        return false;
     }
 
     // always return success
@@ -699,18 +662,9 @@ bool Copter::ModeAuto::verify_command(const AP_Mission::Mission_Command& cmd)
     // do commands (always return true)
     case MAV_CMD_DO_CHANGE_SPEED:
     case MAV_CMD_DO_SET_HOME:
-    case MAV_CMD_DO_SET_SERVO:
-    case MAV_CMD_DO_SET_RELAY:
-    case MAV_CMD_DO_REPEAT_SERVO:
-    case MAV_CMD_DO_REPEAT_RELAY:
     case MAV_CMD_DO_SET_ROI:
     case MAV_CMD_DO_MOUNT_CONTROL:
-    case MAV_CMD_DO_CONTROL_VIDEO:
-    case MAV_CMD_DO_DIGICAM_CONFIGURE:
-    case MAV_CMD_DO_DIGICAM_CONTROL:
-    case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
     case MAV_CMD_DO_PARACHUTE:  // assume parachute was released successfully
-    case MAV_CMD_DO_GRIPPER:
     case MAV_CMD_DO_GUIDED_LIMITS:
     case MAV_CMD_DO_FENCE_ENABLE:
     case MAV_CMD_DO_WINCH:
@@ -774,7 +728,7 @@ void Copter::ModeAuto::wp_run()
         attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), target_yaw_rate);
     } else {
         // roll, pitch from waypoint controller, yaw heading from auto_heading()
-        attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(),true);
+        attitude_control->input_euler_angle_roll_pitch_yaw(wp_nav->get_roll(), wp_nav->get_pitch(), auto_yaw.yaw(), true);
     }
 }
 
@@ -829,6 +783,7 @@ void Copter::ModeAuto::land_run()
     if (!motors->armed() || !ap.auto_armed || ap.land_complete || !motors->get_interlock()) {
         zero_throttle_and_relax_ac();
         // set target to current position
+        loiter_nav->clear_pilot_desired_acceleration();
         loiter_nav->init_target();
         return;
     }
@@ -858,8 +813,13 @@ void Copter::ModeAuto::circle_run()
     // call z-axis position controller
     pos_control->update_z_controller();
 
-    // roll & pitch from waypoint controller, yaw rate from pilot
-    attitude_control->input_euler_angle_roll_pitch_yaw(copter.circle_nav->get_roll(), copter.circle_nav->get_pitch(), copter.circle_nav->get_yaw(), true);
+    if (auto_yaw.mode() == AUTO_YAW_HOLD) {
+        // roll & pitch from waypoint controller, yaw rate from pilot
+        attitude_control->input_euler_angle_roll_pitch_yaw(copter.circle_nav->get_roll(), copter.circle_nav->get_pitch(), copter.circle_nav->get_yaw(), true);
+    } else {
+        // roll, pitch from waypoint controller, yaw heading from auto_heading()
+        attitude_control->input_euler_angle_roll_pitch_yaw(copter.circle_nav->get_roll(), copter.circle_nav->get_pitch(), auto_yaw.yaw(), true);
+    }
 }
 
 #if NAV_GUIDED == ENABLED
@@ -924,6 +884,7 @@ void Copter::ModeAuto::payload_place_run()
     if (!payload_place_run_should_run()) {
         zero_throttle_and_relax_ac();
         // set target to current position
+        loiter_nav->clear_pilot_desired_acceleration();
         loiter_nav->init_target();
         return;
     }
@@ -978,7 +939,7 @@ void Copter::ModeAuto::payload_place_run_loiter()
     land_run_horizontal_control();
 
     // run loiter controller
-    loiter_nav->update(ekfGndSpdLimit, ekfNavVelGainScaler);
+    loiter_nav->update();
 
     // call attitude controller
     const float target_yaw_rate = 0;
@@ -1000,18 +961,17 @@ Location_Class Copter::ModeAuto::terrain_adjusted_location(const AP_Mission::Mis
 {
     // convert to location class
     Location_Class target_loc(cmd.content.location);
-    const Location_Class &current_loc = copter.current_loc;
 
     // decide if we will use terrain following
     int32_t curr_terr_alt_cm, target_terr_alt_cm;
-    if (current_loc.get_alt_cm(Location_Class::ALT_FRAME_ABOVE_TERRAIN, curr_terr_alt_cm) &&
+    if (copter.current_loc.get_alt_cm(Location_Class::ALT_FRAME_ABOVE_TERRAIN, curr_terr_alt_cm) &&
         target_loc.get_alt_cm(Location_Class::ALT_FRAME_ABOVE_TERRAIN, target_terr_alt_cm)) {
         curr_terr_alt_cm = MAX(curr_terr_alt_cm,200);
         // if using terrain, set target altitude to current altitude above terrain
         target_loc.set_alt_cm(curr_terr_alt_cm, Location_Class::ALT_FRAME_ABOVE_TERRAIN);
     } else {
         // set target altitude to current altitude above home
-        target_loc.set_alt_cm(current_loc.alt, Location_Class::ALT_FRAME_ABOVE_HOME);
+        target_loc.set_alt_cm(copter.current_loc.alt, Location_Class::ALT_FRAME_ABOVE_HOME);
     }
     return target_loc;
 }
@@ -1027,28 +987,34 @@ void Copter::ModeAuto::do_takeoff(const AP_Mission::Mission_Command& cmd)
     takeoff_start(cmd.content.location);
 }
 
+Location_Class Copter::ModeAuto::loc_from_cmd(const AP_Mission::Mission_Command& cmd) const
+{
+    Location_Class ret(cmd.content.location);
+
+    // use current lat, lon if zero
+    if (ret.lat == 0 && ret.lng == 0) {
+        ret.lat = copter.current_loc.lat;
+        ret.lng = copter.current_loc.lng;
+    }
+    // use current altitude if not provided
+    if (ret.alt == 0) {
+        // set to current altitude but in command's alt frame
+        int32_t curr_alt;
+        if (copter.current_loc.get_alt_cm(ret.get_alt_frame(),curr_alt)) {
+            ret.set_alt_cm(curr_alt, ret.get_alt_frame());
+        } else {
+            // default to current altitude as alt-above-home
+            ret.set_alt_cm(copter.current_loc.alt,
+                           copter.current_loc.get_alt_frame());
+        }
+    }
+    return ret;
+}
+
 // do_nav_wp - initiate move to next waypoint
 void Copter::ModeAuto::do_nav_wp(const AP_Mission::Mission_Command& cmd)
 {
-    Location_Class target_loc(cmd.content.location);
-    const Location_Class &current_loc = copter.current_loc;
-
-    // use current lat, lon if zero
-    if (target_loc.lat == 0 && target_loc.lng == 0) {
-        target_loc.lat = current_loc.lat;
-        target_loc.lng = current_loc.lng;
-    }
-    // use current altitude if not provided
-    if (target_loc.alt == 0) {
-        // set to current altitude but in command's alt frame
-        int32_t curr_alt;
-        if (current_loc.get_alt_cm(target_loc.get_alt_frame(),curr_alt)) {
-            target_loc.set_alt_cm(curr_alt, target_loc.get_alt_frame());
-        } else {
-            // default to current altitude as alt-above-home
-            target_loc.set_alt_cm(current_loc.alt, current_loc.get_alt_frame());
-        }
-    }
+    Location_Class target_loc = loc_from_cmd(cmd);
 
     // this will be used to remember the time in millis after we reach or pass the WP.
     loiter_time = 0;
@@ -1093,7 +1059,6 @@ void Copter::ModeAuto::do_loiter_unlimited(const AP_Mission::Mission_Command& cm
 {
     // convert back to location
     Location_Class target_loc(cmd.content.location);
-    const Location_Class &current_loc = copter.current_loc;
 
     // use current location if not provided
     if (target_loc.lat == 0 && target_loc.lng == 0) {
@@ -1110,11 +1075,12 @@ void Copter::ModeAuto::do_loiter_unlimited(const AP_Mission::Mission_Command& cm
     if (target_loc.alt == 0) {
         // set to current altitude but in command's alt frame
         int32_t curr_alt;
-        if (current_loc.get_alt_cm(target_loc.get_alt_frame(),curr_alt)) {
+        if (copter.current_loc.get_alt_cm(target_loc.get_alt_frame(),curr_alt)) {
             target_loc.set_alt_cm(curr_alt, target_loc.get_alt_frame());
         } else {
             // default to current altitude as alt-above-home
-            target_loc.set_alt_cm(current_loc.alt, current_loc.get_alt_frame());
+            target_loc.set_alt_cm(copter.current_loc.alt,
+                                  copter.current_loc.get_alt_frame());
         }
     }
 
@@ -1125,28 +1091,7 @@ void Copter::ModeAuto::do_loiter_unlimited(const AP_Mission::Mission_Command& cm
 // do_circle - initiate moving in a circle
 void Copter::ModeAuto::do_circle(const AP_Mission::Mission_Command& cmd)
 {
-    Location_Class circle_center(cmd.content.location);
-    const Location_Class &current_loc = copter.current_loc;
-
-    // default lat/lon to current position if not provided
-    // To-Do: use stopping point or position_controller's target instead of current location to avoid jerk?
-    if (circle_center.lat == 0 && circle_center.lng == 0) {
-        circle_center.lat = current_loc.lat;
-        circle_center.lng = current_loc.lng;
-    }
-
-    // default target altitude to current altitude if not provided
-    if (circle_center.alt == 0) {
-        int32_t curr_alt;
-        if (current_loc.get_alt_cm(circle_center.get_alt_frame(),curr_alt)) {
-            // circle altitude uses frame from command
-            circle_center.set_alt_cm(curr_alt,circle_center.get_alt_frame());
-        } else {
-            // default to current altitude above origin
-            circle_center.set_alt_cm(current_loc.alt, current_loc.get_alt_frame());
-            copter.Log_Write_Error(ERROR_SUBSYSTEM_TERRAIN, ERROR_CODE_MISSING_TERRAIN_DATA);
-        }
-    }
+    Location_Class circle_center = loc_from_cmd(cmd);
 
     // calculate radius
     uint8_t circle_radius_m = HIGHBYTE(cmd.p1); // circle radius held in high byte of p1
@@ -1170,25 +1115,7 @@ void Copter::ModeAuto::do_loiter_time(const AP_Mission::Mission_Command& cmd)
 // do_spline_wp - initiate move to next waypoint
 void Copter::ModeAuto::do_spline_wp(const AP_Mission::Mission_Command& cmd)
 {
-    Location_Class target_loc(cmd.content.location);
-    const Location_Class &current_loc = copter.current_loc;
-
-    // use current lat, lon if zero
-    if (target_loc.lat == 0 && target_loc.lng == 0) {
-        target_loc.lat = current_loc.lat;
-        target_loc.lng = current_loc.lng;
-    }
-    // use current altitude if not provided
-    if (target_loc.alt == 0) {
-        // set to current altitude but in command's alt frame
-        int32_t curr_alt;
-        if (current_loc.get_alt_cm(target_loc.get_alt_frame(),curr_alt)) {
-            target_loc.set_alt_cm(curr_alt, target_loc.get_alt_frame());
-        } else {
-            // default to current altitude as alt-above-home
-            target_loc.set_alt_cm(current_loc.alt, current_loc.get_alt_frame());
-        }
-    }
+    Location_Class target_loc = loc_from_cmd(cmd);
 
     // this will be used to remember the time in millis after we reach or pass the WP.
     loiter_time = 0;
@@ -1314,7 +1241,13 @@ void Copter::ModeAuto::do_yaw(const AP_Mission::Mission_Command& cmd)
 void Copter::ModeAuto::do_change_speed(const AP_Mission::Mission_Command& cmd)
 {
     if (cmd.content.speed.target_ms > 0) {
-        copter.wp_nav->set_speed_xy(cmd.content.speed.target_ms * 100.0f);
+        if (cmd.content.speed.speed_type == 2)  {
+            copter.wp_nav->set_speed_z(copter.wp_nav->get_speed_down(), cmd.content.speed.target_ms * 100.0f);
+        } else if (cmd.content.speed.speed_type == 3)  {
+            copter.wp_nav->set_speed_z(cmd.content.speed.target_ms * 100.0f, copter.wp_nav->get_speed_up());
+        } else {
+            copter.wp_nav->set_speed_xy(cmd.content.speed.target_ms * 100.0f);
+        }
     }
 }
 
@@ -1347,34 +1280,6 @@ void Copter::ModeAuto::do_mount_control(const AP_Mission::Mission_Command& cmd)
 #endif
 }
 
-#if CAMERA == ENABLED
-
-// do_digicam_configure Send Digicam Configure message with the camera library
-void Copter::ModeAuto::do_digicam_configure(const AP_Mission::Mission_Command& cmd)
-{
-    copter.camera.configure(
-        cmd.content.digicam_configure.shooting_mode,
-        cmd.content.digicam_configure.shutter_speed,
-        cmd.content.digicam_configure.aperture,
-        cmd.content.digicam_configure.ISO,
-        cmd.content.digicam_configure.exposure_type,
-        cmd.content.digicam_configure.cmd_id,
-        cmd.content.digicam_configure.engine_cutoff_time);
-}
-
-// do_digicam_control Send Digicam Control message with the camera library
-void Copter::ModeAuto::do_digicam_control(const AP_Mission::Mission_Command& cmd)
-{
-    copter.camera.control(cmd.content.digicam_control.session,
-                           cmd.content.digicam_control.zoom_pos,
-                           cmd.content.digicam_control.zoom_step,
-                           cmd.content.digicam_control.focus_lock,
-                           cmd.content.digicam_control.shooting_cmd,
-                           cmd.content.digicam_control.cmd_id);
-}
-
-#endif
-
 #if PARACHUTE == ENABLED
 // do_parachute - configure or release parachute
 void Copter::ModeAuto::do_parachute(const AP_Mission::Mission_Command& cmd)
@@ -1390,27 +1295,6 @@ void Copter::ModeAuto::do_parachute(const AP_Mission::Mission_Command& cmd)
             break;
         case PARACHUTE_RELEASE:
             copter.parachute_release();
-            break;
-        default:
-            // do nothing
-            break;
-    }
-}
-#endif
-
-#if GRIPPER_ENABLED == ENABLED
-// do_gripper - control gripper
-void Copter::ModeAuto::do_gripper(const AP_Mission::Mission_Command& cmd)
-{
-    // Note: we ignore the gripper num parameter because we only support one gripper
-    switch (cmd.content.gripper.action) {
-        case GRIPPER_ACTION_RELEASE:
-            g2.gripper.release();
-            Log_Write_Event(DATA_GRIPPER_RELEASE);
-            break;
-        case GRIPPER_ACTION_GRAB:
-            g2.gripper.grab();
-            Log_Write_Event(DATA_GRIPPER_GRAB);
             break;
         default:
             // do nothing
@@ -1740,7 +1624,7 @@ bool Copter::ModeAuto::verify_yaw()
     }
 
     // check if we are within 2 degrees of the target heading
-    return (labs(wrap_180_cd(ahrs.yaw_sensor-auto_yaw.yaw())) <= 200);
+    return (fabsf(wrap_180_cd(ahrs.yaw_sensor-auto_yaw.yaw())) <= 200);
 }
 
 // verify_nav_wp - check if we have reached the next way point

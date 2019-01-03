@@ -64,7 +64,7 @@ public:
     void init_brake_target(float accel_cmss);
     ///
     /// update_brake - run the brake controller - should be called at 400hz
-    void update_brake(float ekfGndSpdLimit, float ekfNavVelGainScaler);
+    void update_brake();
 
     ///
     /// waypoint controller
@@ -77,6 +77,9 @@ public:
 
     /// set_speed_xy - allows main code to pass target horizontal velocity for wp navigation
     void set_speed_xy(float speed_cms);
+
+    /// set_speed_z - allows main code to pass target vertical velocity for wp navigation
+    void set_speed_z(float speed_down_cms, float speed_up_cms);
 
     /// get_speed_xy - allows main code to retrieve target horizontal velocity for wp navigation
     float get_speed_xy() const { return _wp_speed_cms; }

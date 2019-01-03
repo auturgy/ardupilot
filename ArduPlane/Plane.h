@@ -108,6 +108,10 @@
 // Local modules
 #include "defines.h"
 
+#ifdef ENABLE_SCRIPTING
+#include <AP_Scripting/AP_Scripting.h>
+#endif
+
 #include "RC_Channel.h"     // RC Channel Library
 #include "Parameters.h"
 #include "avoidance_adsb.h"
@@ -150,6 +154,7 @@ public:
     friend class AP_AdvancedFailsafe_Plane;
     friend class AP_Avoidance_Plane;
     friend class GCS_Plane;
+    friend class RC_Channel_Plane;
     friend class RC_Channels_Plane;
 
     Plane(void);
@@ -590,9 +595,6 @@ private:
     // The instantaneous desired pitch angle.  Hundredths of a degree
     int32_t nav_pitch_cd;
 
-    // we separate out rudder input to allow for RUDDER_ONLY=1
-    int16_t rudder_input;
-
     // the aerodymamic load factor. This is calculated from the demanded
     // roll before the roll is clipped, using 1/sqrt(cos(nav_roll))
     float aerodynamic_load_factor = 1.0f;
@@ -743,7 +745,7 @@ private:
     // Camera/Antenna mount tracking and stabilisation stuff
 #if MOUNT == ENABLED
     // current_loc uses the baro/gps soloution for altitude rather than gps only.
-    AP_Mount camera_mount{ahrs, current_loc};
+    AP_Mount camera_mount{current_loc};
 #endif
 
     // Arming/Disarming mangement class
@@ -909,9 +911,10 @@ private:
     void init_rc_out_aux();
     void rudder_arm_disarm_check();
     void read_radio();
+    int16_t rudder_input(void);
     void control_failsafe();
     bool trim_radio();
-    bool rc_failsafe_active(void);
+    bool rc_failsafe_active(void) const;
     void read_rangefinder(void);
     void read_airspeed(void);
     void rpm_update(void);
@@ -965,7 +968,6 @@ private:
     void servos_twin_engine_mix();
     void throttle_watt_limiter(int8_t &min_throttle, int8_t &max_throttle);
     bool allow_reverse_thrust(void);
-    void update_aux();
     void update_is_flying_5Hz(void);
     void crash_detection_update(void);
     bool in_preLaunch_flight_stage(void);
@@ -1014,8 +1016,6 @@ private:
     void do_within_distance(const AP_Mission::Mission_Command& cmd);
     void do_change_speed(const AP_Mission::Mission_Command& cmd);
     void do_set_home(const AP_Mission::Mission_Command& cmd);
-    void do_digicam_configure(const AP_Mission::Mission_Command& cmd);
-    void do_digicam_control(const AP_Mission::Mission_Command& cmd);
     bool start_command_callback(const AP_Mission::Mission_Command &cmd);
     bool verify_command_callback(const AP_Mission::Mission_Command& cmd);
     void notify_flight_mode(enum FlightMode mode);
@@ -1035,6 +1035,8 @@ private:
 #if SOARING_ENABLED == ENABLED
     void update_soaring();
 #endif
+
+    void read_aux_all();
 
     // support for AP_Avoidance custom flight mode, AVOID_ADSB
     bool avoid_adsb_init(bool ignore_checks);

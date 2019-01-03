@@ -25,6 +25,7 @@ public:
         HOLD         = 4,
         LOITER       = 5,
         FOLLOW       = 6,
+        SIMPLE       = 7,
         AUTO         = 10,
         RTL          = 11,
         SMART_RTL    = 12,
@@ -112,6 +113,9 @@ public:
     // rtl argument should be true if called from RTL or SmartRTL modes (handled here to avoid duplication)
     void set_desired_speed_to_default(bool rtl = false);
 
+    // execute the mission in reverse (i.e. backing up)
+    void set_reversed(bool value);
+
 protected:
 
     // subclasses override this to perform checks before entering the mode
@@ -131,6 +135,9 @@ protected:
     // decode pilot lateral movement input and return in lateral_out argument
     void get_pilot_desired_lateral(float &lateral_out);
 
+    // decode pilot's input and return heading_out (in cd) and speed_out (in m/s)
+    void get_pilot_desired_heading_and_speed(float &heading_out, float &speed_out);
+
     // calculate steering output to drive along line from origin to destination waypoint
     void calc_steering_to_waypoint(const struct Location &origin, const struct Location &destination, bool reversed = false);
 
@@ -138,7 +145,8 @@ protected:
     void calc_steering_from_lateral_acceleration(float lat_accel, bool reversed = false);
 
     // calculate steering output to drive towards desired heading
-    void calc_steering_to_heading(float desired_heading_cd, float rate_max, bool reversed = false);
+    // rate_max is a maximum turn rate in deg/s.  set to zero to use default turn rate limits
+    void calc_steering_to_heading(float desired_heading_cd, float rate_max_degs = 0.0f);
 
     // calculates the amount of throttle that should be output based
     // on things like proximity to corners and current speed
@@ -194,6 +202,7 @@ protected:
     float _desired_speed_final; // desired speed in m/s when we reach the destination
     float _speed_error;         // ground speed error in m/s
     uint32_t last_steer_to_wp_ms;   // system time of last call to calc_steering_to_waypoint
+    bool _reversed;             // execute the mission by backing up
 };
 
 
@@ -247,9 +256,6 @@ public:
     // start RTL (within auto)
     void start_RTL();
 
-    // execute the mission in reverse (i.e. backing up)
-    void set_reversed(bool value);
-
 protected:
 
     bool _enter() override;
@@ -272,7 +278,6 @@ private:
     bool auto_triggered;
 
     bool _reached_heading;      // true when vehicle has reached desired heading in TurnToHeading sub mode
-    bool _reversed;             // execute the mission by backing up
 };
 
 
@@ -481,3 +486,27 @@ protected:
 
     bool _enter() override;
 };
+
+class ModeSimple : public Mode
+{
+public:
+
+    uint32_t mode_number() const override { return SIMPLE; }
+    const char *name4() const override { return "SMPL"; }
+
+    // methods that affect movement of the vehicle in this mode
+    void update() override;
+    void init_heading();
+
+private:
+
+    // simple type enum used for SIMPLE_TYPE parameter
+    enum simple_type {
+        Simple_InitialHeading = 0,
+        Simple_CardinalDirections = 1,
+    };
+
+    float _initial_heading_cd;  // vehicle heading (in centi-degrees) at moment vehicle was armed
+    float _desired_heading_cd;  // latest desired heading (in centi-degrees) from pilot
+};
+

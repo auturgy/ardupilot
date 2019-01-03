@@ -90,7 +90,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     // @Param: AUTO_SWITCH
     // @DisplayName: Automatic Switchover Setting
     // @Description: Automatic switchover to GPS reporting best lock
-    // @Values: 0:Disabled,1:UseBest,2:Blend
+    // @Values: 0:Disabled,1:UseBest,2:Blend,3:UseSecond
     // @User: Advanced
     AP_GROUPINFO("AUTO_SWITCH", 3, AP_GPS, _auto_switch, 1),
 
@@ -414,50 +414,24 @@ void AP_GPS::detect_instance(uint8_t instance)
     state[instance].status = NO_GPS;
     state[instance].hdop = GPS_UNKNOWN_DOP;
     state[instance].vdop = GPS_UNKNOWN_DOP;
-    
+
     switch (_type[instance]) {
     // user has to explicitly set the MAV type, do not use AUTO
     // do not try to detect the MAV type, assume it's there
-    case GPS_TYPE_MAV: {
+    case GPS_TYPE_MAV:
         dstate->auto_detected_baud = false; // specified, not detected
         new_gps = new AP_GPS_MAV(*this, state[instance], nullptr);
         goto found_gps;
         break;
-    }
 
     // user has to explicitly set the UAVCAN type, do not use AUTO
-    case GPS_TYPE_UAVCAN: {
+    case GPS_TYPE_UAVCAN:
 #if HAL_WITH_UAVCAN
         dstate->auto_detected_baud = false; // specified, not detected
-
-        uint8_t can_num_drivers = AP::can().get_num_drivers();
-
-        for (uint8_t i = 0; i < can_num_drivers; i++) {
-            AP_UAVCAN *ap_uavcan = AP_UAVCAN::get_uavcan(i);
-            if (ap_uavcan == nullptr) {
-                continue;
-            }
-
-            uint8_t gps_node = ap_uavcan->find_gps_without_listener();
-            if (gps_node == UINT8_MAX) {
-                continue;
-            }
-
-            new_gps = new AP_GPS_UAVCAN(*this, state[instance], nullptr);
-            ((AP_GPS_UAVCAN*) new_gps)->set_uavcan_manager(i);
-            if (ap_uavcan->register_gps_listener_to_node(new_gps, gps_node)) {
-                if (AP::can().get_debug_level_driver(i) >= 2) {
-                    printf("AP_GPS_UAVCAN registered\n\r");
-                }
-                goto found_gps;
-            } else {
-                delete new_gps;
-            }
-        }
+        new_gps = AP_GPS_UAVCAN::probe(*this, state[instance]);
+        goto found_gps;
 #endif
-        return;
-    }
-
+        return; // We don't do anything here if UAVCAN is not supported
     default:
         break;
     }
@@ -722,7 +696,10 @@ void AP_GPS::update(void)
     } else {
         // use switch logic to find best GPS
         uint32_t now = AP_HAL::millis();
-        if (_auto_switch >= 1) {
+        if (_auto_switch == 3) {
+            // select the second GPS instance
+            primary_instance = 1;
+        } else if (_auto_switch >= 1) {
             // handling switching away from blended GPS
             if (primary_instance == GPS_BLENDED_INSTANCE) {
                 primary_instance = 0;

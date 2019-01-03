@@ -88,7 +88,19 @@ class Board:
             '-Wno-unknown-pragmas',
             '-Wno-trigraphs',
             '-Werror=return-type',
+            '-Werror=unused-result',
         ]
+
+        if cfg.options.enable_scripting:
+            env.DEFINES.update(
+                ENABLE_SCRIPTING = 1,
+                LUA_32BITS = 1,
+                )
+
+            env.AP_LIBRARIES += [
+                'AP_Scripting',
+                'AP_Scripting/lua/src',
+                ]
 
         if 'clang' in cfg.env.COMPILER_CC:
             env.CFLAGS += [
@@ -106,6 +118,9 @@ class Board:
                 '-g',
                 '-O0',
             ]
+
+        if cfg.options.enable_math_check_indexes:
+            env.CXXFLAGS += ['-DMATH_CHECK_INDEXES']
 
         env.CXXFLAGS += [
             '-std=gnu++11',
@@ -134,6 +149,8 @@ class Board:
             '-Werror=return-type',
             '-Werror=switch',
             '-Werror=sign-compare',
+            '-Werror=unused-result',
+            '-Werror=return-type',
             '-Wfatal-errors',
             '-Wno-trigraphs',
         ]
@@ -208,6 +225,14 @@ class Board:
     def embed_ROMFS_files(self, ctx):
         '''embed some files using AP_ROMFS'''
         import embed
+        if ctx.env.USE_NUTTX_IOFW:
+            # use fmuv2_IO_NuttX.bin instead of fmuv2_IO.bin
+            for i in range(len(ctx.env.ROMFS_FILES)):
+                (name,filename) = ctx.env.ROMFS_FILES[i]
+                if name == 'io_firmware.bin':
+                    filename = 'Tools/IO_Firmware/fmuv2_IO_NuttX.bin'
+                    print("Using IO firmware %s" % filename)
+                    ctx.env.ROMFS_FILES[i] = (name,filename);
         header = ctx.bldnode.make_node('ap_romfs_embedded.h').abspath()
         if not embed.create_embedded_h(header, ctx.env.ROMFS_FILES):
             bld.fatal("Failed to created ap_romfs_embedded.h")
@@ -256,6 +281,10 @@ class sitl(Board):
             CONFIG_HAL_BOARD_SUBTYPE = 'HAL_BOARD_SUBTYPE_NONE',
         )
 
+        env.CXXFLAGS += [
+            '-Werror=float-equal'
+        ]
+
         if not cfg.env.DEBUG:
             env.CXXFLAGS += [
                 '-O3',
@@ -301,6 +330,7 @@ class chibios(Board):
     def configure_env(self, cfg, env):
         super(chibios, self).configure_env(cfg, env)
 
+        cfg.load('chibios')
         env.BOARD = self.name
 
         env.DEFINES.update(
@@ -315,8 +345,8 @@ class chibios(Board):
 
         # make board name available for USB IDs
         env.CHIBIOS_BOARD_NAME = 'HAL_BOARD_NAME="%s"' % self.name
-
-        env.CXXFLAGS += [
+        env.CFLAGS += cfg.env.CPU_FLAGS + [
+            '-Wno-cast-align',
             '-Wlogical-op',
             '-Wframe-larger-than=1300',
             '-fsingle-precision-constant',
@@ -326,10 +356,7 @@ class chibios(Board):
             '-Wno-error=float-equal',
             '-Wno-error=undef',
             '-Wno-error=cpp',
-            '-Wno-cast-align',
             '-fno-exceptions',
-            '-fno-rtti',
-            '-fno-threadsafe-statics',
             '-Wall',
             '-Wextra',
             '-Wno-sign-compare',
@@ -358,12 +385,15 @@ class chibios(Board):
             '-fno-builtin-vprintf',
             '-fno-builtin-vfprintf',
             '-fno-builtin-puts',
-            '-mcpu=cortex-m4',
             '-mno-thumb-interwork',
             '-mthumb',
-            '-mfpu=fpv4-sp-d16',
-            '-mfloat-abi=hard',
+            '--specs=nano.specs',
+            '-specs=nosys.specs',
             '-DCHIBIOS_BOARD_NAME="%s"' % self.name,
+        ]
+        env.CXXFLAGS += env.CFLAGS + [
+            '-fno-rtti',
+            '-fno-threadsafe-statics',
         ]
 
         if sys.platform == 'cygwin':
@@ -371,9 +401,7 @@ class chibios(Board):
 
         bldnode = cfg.bldnode.make_node(self.name)
         env.BUILDROOT = bldnode.make_node('').abspath()
-
-        env.LINKFLAGS = [
-            '-mcpu=cortex-m4',
+        env.LINKFLAGS = cfg.env.CPU_FLAGS + [
             '-Os',
             '-fomit-frame-pointer',
             '-falign-functions=16',
@@ -386,25 +414,26 @@ class chibios(Board):
             '-u_getpid',
             '-u_errno',
             '-uchThdExit',
-            '-u_printf_float',
             '-fno-common',
             '-nostartfiles',
-            '-mfloat-abi=hard',
-            '-mfpu=fpv4-sp-d16',
             '-mno-thumb-interwork',
             '-mthumb',
+            '-specs=nano.specs',
+            '-specs=nosys.specs',
             '-L%s' % env.BUILDROOT,
             '-L%s' % cfg.srcnode.make_node('modules/ChibiOS/os/common/startup/ARMCMx/compilers/GCC/ld/').abspath(),
             '-L%s' % cfg.srcnode.make_node('libraries/AP_HAL_ChibiOS/hwdef/common/').abspath(),
-            '-Wl,--gc-sections,--no-warn-mismatch,--library-path=/ld,--script=ldscript.ld,--defsym=__process_stack_size__=0x400,--defsym=__main_stack_size__=0x400',
+            '-Wl,--gc-sections,--no-warn-mismatch,--library-path=/ld,--script=ldscript.ld,--defsym=__process_stack_size__=%s,--defsym=__main_stack_size__=%s' % (cfg.env.PROCESS_STACK, cfg.env.MAIN_STACK)
         ]
 
         if cfg.env.DEBUG:
             env.CFLAGS += [
-                '-g',
+                '-gdwarf-4',
+                '-g3',
             ]
             env.LINKFLAGS += [
-                '-g',
+                '-gdwarf-4',
+                '-g3',
             ]
 
         if cfg.env.ENABLE_ASSERTS:
@@ -427,8 +456,6 @@ class chibios(Board):
         except Exception:
             cfg.msg("Checking for intelhex module:", 'disabled', color='YELLOW')
             env.HAVE_INTEL_HEX = False
-        
-        cfg.load('chibios')
 
     def build(self, bld):
         super(chibios, self).build(bld)

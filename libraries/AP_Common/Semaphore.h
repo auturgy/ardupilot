@@ -12,17 +12,30 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+#pragma once
 
 /*
   a method to make semaphores less error prone. The WITH_SEMAPHORE()
   macro will block forever for a semaphore, and will automatically
   release the semaphore when it goes out of scope
+
+  Note that we have two types of semaphores. A normal semaphore can
+  only be taken once. A recursive semaphore allows for the thread
+  holding the semaphore to take it again. It must be released the same
+  number of times it is taken.
+
+  The WITH_SEMAPHORE() macro can be used with either type of semaphore
  */
+
+namespace AP_HAL {
+class Semaphore;
+}
+
 class WithSemaphore {
 public:
-    WithSemaphore(HAL_Semaphore &mtx) :
-    _mtx(mtx)
-    {
+    WithSemaphore(AP_HAL::Semaphore *mtx) : WithSemaphore(*mtx) { }
+
+    WithSemaphore(AP_HAL::Semaphore &mtx) : _mtx(mtx) {
         _mtx.take_blocking();
     }
 
@@ -30,8 +43,8 @@ public:
         _mtx.give();
     }
 private:
-    HAL_Semaphore &_mtx;
+    AP_HAL::Semaphore &_mtx;
 };
 
-#define WITH_SEMAPHORE(sem) WithSemaphore _getsem(sem)
+#define WITH_SEMAPHORE(sem) WithSemaphore _getsem ## __UNIQ__(sem)
 
