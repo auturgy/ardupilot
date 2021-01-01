@@ -1,7 +1,7 @@
 # hw definition file for processing by chibios_pins.py
 # for ANYFCF7 hardware.
 # https://github.com/sambas/hw/tree/master/AnyFCF7
-@ thanks to betaflight for pin information and sambas for the design
+# thanks to betaflight for pin information and sambas for the design
 
 # MCU class and specific type
 MCU STM32F7xx STM32F745xx
@@ -79,9 +79,14 @@ PD13 I2C4_SDA I2C4 NODMA
 # baro is BMP280 on I2C2 IF FITTED
 # mag is on I2C2 if connected
 
+# compass likely not fitted so allow init and probe
+define ALLOW_ARM_NO_COMPASS
+define HAL_COMPASS_DEFAULT HAL_COMPASS_NONE
+define HAL_PROBE_EXTERNAL_I2C_COMPASSES
+
 # also allow for probing of external barometers
-define HAL_BARO_DEFAULT HAL_BARO_FAKE
 define HAL_PROBE_EXTERNAL_I2C_BAROS
+define HAL_BARO_ALLOW_INIT_NO_BARO
 
 PC0 BATT_VOLTAGE_SENS ADC1 SCALE(1)
 PC1 BATT_CURRENT_SENS ADC1 SCALE(1)
@@ -147,5 +152,11 @@ define STORAGE_FLASH_PAGE 1
 SPIDEV mpu6000 SPI1 DEVID2 MPU6000_CS MODE3  1*MHZ  4*MHZ
 SPIDEV sdcard  SPI4 DEVID1 SDCARD_CS MODE0 400*KHZ 25*MHZ
 
+# 8 PWM available by default
+define BOARD_PWM_COUNT_DEFAULT 8
+
+# setup for OSD
+define OSD_ENABLED 1
+define HAL_OSD_TYPE_DEFAULT 1
+
 define HAL_OS_FATFS_IO 1
-define ALLOW_ARM_NO_COMPASS
