@@ -60,8 +60,9 @@ jobs:
       - uses: actions/checkout@v2
 
     # Runs a single command using the runners shell
-      - name: Detect OS
-        run: bash ./Tools/scripts/build_ci.sh
+      - name: Build_CI_MacOS
+        run: ./Tools/scripts/build_ci.sh
+        shell: bash
 
   build_win:
   # The type of runner that the job will run on
@@ -74,8 +75,9 @@ jobs:
       - uses: actions/checkout@v2
 
     # Runs a single command using the runners shell
-      - name: Detect OS
-        run: bash ./Tools/scripts/build_ci.sh
+      - name: Build_CI_Win
+        run: .\Tools\scripts\build_ci.sh
+        shell: powershell
 
   build_ubuntu:
   # The type of runner that the job will run on
@@ -88,5 +90,6 @@ jobs:
       - uses: actions/checkout@v2
 
     # Runs a single command using the runners shell
-      - name: Detect OS
-        run: bash ./Tools/scripts/build_ci.sh
+      - name: Build_CI_Ubuntu
+        run: ./Tools/scripts/build_ci.sh
+        shell: bash
