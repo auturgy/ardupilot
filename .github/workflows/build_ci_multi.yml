@@ -7,9 +7,6 @@ on: [push, pull_request, workflow_dispatch]
 # - "*"
 # - "!README.md" <-- don't rebuild on doc change
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
-
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains three jobs to verify different hosts
