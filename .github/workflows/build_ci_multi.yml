@@ -1,5 +1,5 @@
 
-name: autotest
+name: Full CI
 
 # Controls when the action will run.
 on: [push, pull_request, workflow_dispatch]
@@ -35,7 +35,7 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Setup Windows env
-        run: .\Tools\environment_install\install-prereqs-windows.ps1
+        run: .\Tools\environment_install\install-prereqs-windows.ps1 && git submodule update --recursive --init
         shell: powershell
 
   setup_ubuntu:
