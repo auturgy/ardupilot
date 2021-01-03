@@ -21,7 +21,8 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Setup MacOS env
-        run: bash ./Tools/environment_install/install-prereqs-mac.sh
+        run: ./Tools/environment_install/install-prereqs-mac.sh
+        shell: bash
 
   setup_win:
     # The type of runner that the job will run on
@@ -34,7 +35,8 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Setup Windows env
-        run: bash ./Tools/environment_install/install-prereqs-windows.ps1
+        run: .\Tools\environment_install\install-prereqs-windows.ps1
+        shell: powershell
 
   setup_ubuntu:
     # The type of runner that the job will run on
@@ -47,7 +49,8 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Setup Ubuntu env
-        run: bash ./Tools/environment_install/install-prereqs-ubuntu.sh
+        run: ./Tools/environment_install/install-prereqs-ubuntu.sh
+        shell: bash
 
   build_mac:
   # The type of runner that the job will run on
