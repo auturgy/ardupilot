@@ -24,6 +24,10 @@ jobs:
         run: ./Tools/environment_install/install-prereqs-mac.sh
         shell: bash
 
+      - name: Update submodules
+        run: git submodule update --recursive --init
+        shell: bash
+
   setup_win:
     # The type of runner that the job will run on
     runs-on: windows-latest
@@ -55,6 +59,10 @@ jobs:
       - name: Setup Ubuntu env
         run: ./Tools/environment_install/install-prereqs-ubuntu.sh
         shell: bash
+
+     - name: Update submodules
+       run: git submodule update --recursive --init
+       shell: bash
 
   build_mac:
   # The type of runner that the job will run on
