@@ -35,7 +35,11 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Setup Windows env
-        run: .\Tools\environment_install\install-prereqs-windows.ps1 && git submodule update --recursive --init
+        run: .\Tools\environment_install\install-prereqs-windows.ps1
+        shell: powershell
+
+      - name: Update submodules
+        run: git submodule update --recursive --init
         shell: powershell
 
   setup_ubuntu:
