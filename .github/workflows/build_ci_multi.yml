@@ -76,7 +76,7 @@ jobs:
 
     # Runs a single command using the runners shell
       - name: Build_CI_Win
-        run: .\Tools\scripts\build_ci.sh
+        run: .\Tools\scripts\build_ci.ps1
         shell: powershell
 
   build_ubuntu:
