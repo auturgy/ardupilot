@@ -1,0 +1,35 @@
+name: MacOS SITL
+
+# Controls when the action will run.
+on: [push, pull_request, workflow_dispatch]
+# paths:
+# - "*"
+# - "!README.md" <-- don't rebuild on doc change
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains three jobs to verify different hosts
+  tests_mac:
+    # The type of runner that the job will run on
+    runs-on: macos-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out the PR
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+
+      # Runs a single command using the runners shell
+      - name: Install ArduPilot Dependencies
+        run: bash Tools/environment_install/install-prereqs-mac.sh
+
+# Put ccache into github cache for faster build
+      - name: Build CI MacOS
+        env:
+          CC: clang-7
+          CXX: clang++-7
+        shell: bash
+        run:  |
+          PATH="/github/home/.local/bin:$PATH"
+          Tools/scripts/build_ci.sh

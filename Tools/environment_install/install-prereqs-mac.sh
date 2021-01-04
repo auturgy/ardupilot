@@ -11,11 +11,18 @@ fi
 #install xconde dependencies
 xcode-select --install
 
-brew tap ardupilot/homebrew-px4
+#install necessary homebrew packages
+brew tap ardupilot/ardupilot
 brew update
-brew install genromfs
+brew install gcc@6
 brew install gcc-arm-none-eabi
 brew install gawk
+brew install ccache
+
+CCACHE_PATH=$(which ccache)
+echo "Registering STM32 Toolchain for ccache"
+sudo ln -s -f $CCACHE_PATH /usr/local/opt/ccache/libexec
+echo "Done!"
 
 echo "Checking pip..."
 $(which -s pip)
@@ -26,7 +33,7 @@ else
     echo "pip installed"
 fi
 
-pip2 install --user pyserial future empy mavproxy pexpect
+pip2 install --user pyserial future empy mavproxy pexpect pygame intelhex
 
 SCRIPT_DIR=$(dirname $(realpath ${BASH_SOURCE[0]}))
 ARDUPILOT_ROOT=$(realpath "$SCRIPT_DIR/../../")
