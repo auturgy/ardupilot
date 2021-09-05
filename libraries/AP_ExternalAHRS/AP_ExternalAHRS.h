@@ -47,6 +47,7 @@ public:
     enum class DevType : uint8_t {
         None   = 0,
         VecNav = 1,
+        WITMotion = 2,
     };
 
     static AP_ExternalAHRS *get_singleton(void) {
@@ -131,7 +132,7 @@ public:
         Vector3f gyro;
         float temperature;
     } ins_data_message_t;
-    
+
 private:
     AP_ExternalAHRS_backend *backend;
 
@@ -146,4 +147,3 @@ namespace AP {
 };
 
 #endif  // HAL_EXTERNAL_AHRS_ENABLED
-

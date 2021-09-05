@@ -149,13 +149,14 @@ public:
         SerialProtocol_DJI_FPV = 33,
         SerialProtocol_AirSpeed = 34,
         SerialProtocol_ADSB = 35,
-        SerialProtocol_AHRS = 36,
+        SerialProtocol_VN_AHRS = 36,
         SerialProtocol_SmartAudio = 37,
         SerialProtocol_FETtecOneWire = 38,
         SerialProtocol_Torqeedo = 39,
         SerialProtocol_AIS = 40,
         SerialProtocol_CoDevESC = 41,
         SerialProtocol_MSP_DisplayPort = 42,
+        SerialProtocol_WIT_AHRS = 43,
         SerialProtocol_NumProtocols                    // must be the last value
     };
 

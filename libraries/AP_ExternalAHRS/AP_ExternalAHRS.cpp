@@ -18,6 +18,7 @@
 
 #include "AP_ExternalAHRS.h"
 #include "AP_ExternalAHRS_VectorNav.h"
+#include "AP_ExternalAHRS_WIT.h"
 
 #if HAL_EXTERNAL_AHRS_ENABLED
 
@@ -49,7 +50,7 @@ const AP_Param::GroupInfo AP_ExternalAHRS::var_info[] = {
     // @Param: _TYPE
     // @DisplayName: AHRS type
     // @Description: Type of AHRS device
-    // @Values: 0:None,1:VectorNav
+    // @Values: 0:None,1:VectorNav, 2: WITMotion
     // @User: Standard
     AP_GROUPINFO_FLAGS("_TYPE", 1, AP_ExternalAHRS, devtype, HAL_EXTERNAL_AHRS_DEFAULT, AP_PARAM_FLAG_ENABLE),
 
@@ -58,8 +59,8 @@ const AP_Param::GroupInfo AP_ExternalAHRS::var_info[] = {
     // @Description: Requested rate for AHRS device
     // @Units: Hz
     // @User: Standard
-    AP_GROUPINFO("_RATE", 2, AP_ExternalAHRS, rate, 50),
-    
+    AP_GROUPINFO("_RATE", 2, AP_ExternalAHRS, rate, 50), //WITMotion can optionally be set 50, 100, 200Hz
+
     AP_GROUPEND
 };
 
@@ -77,6 +78,9 @@ void AP_ExternalAHRS::init(void)
         break;
     case DevType::VecNav:
         backend = new AP_ExternalAHRS_VectorNav(this, state);
+        break;
+    case DevType::WITMotion:
+        backend = new AP_ExternalAHRS_WIT(this, state);
         break;
     default:
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unsupported ExternalAHRS type %u", unsigned(devtype));
@@ -189,6 +193,12 @@ Vector3f AP_ExternalAHRS::get_accel(void)
     return state.accel;
 }
 
+Vector3f AP_ExternalAHRS::get_mag(void)
+{
+    WITH_SEMAPHORE(state.sem);
+    return state.mag;
+}
+
 // send an EKF_STATUS message to GCS
 void AP_ExternalAHRS::send_status_report(mavlink_channel_t chan) const
 {
@@ -214,4 +224,3 @@ AP_ExternalAHRS &externalAHRS()
 };
 
 #endif  // HAL_EXTERNAL_AHRS_ENABLED
-
